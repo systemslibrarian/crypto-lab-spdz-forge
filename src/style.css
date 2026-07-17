@@ -349,6 +349,22 @@ body {
   text-decoration: underline;
 }
 
+/* One-shot highlight on data the current protocol step just produced —
+   purposeful motion tied to the learner's step action, never idle. */
+@keyframes fresh-flash {
+  from {
+    background-color: color-mix(in oklab, var(--accent) 35%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+#app .fresh {
+  animation: fresh-flash 1.4s ease-out 1;
+  border-radius: 6px;
+}
+
 /* Motion discipline & stacking */
 @media (prefers-reduced-motion: reduce) {
   #app * {

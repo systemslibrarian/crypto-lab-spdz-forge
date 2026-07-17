@@ -33,6 +33,8 @@ export function bankStats(): { available: number; dealt: number; consumed: numbe
   return { available: bank.length, dealt: dealtTotal, consumed: consumedTotal }
 }
 
+// [extension] point — swap the trusted dealer for a real offline-phase
+// producer (SHE- or OT-based) behind this same bank interface.
 /** Offline phase: deal a fresh batch into the bank. */
 export function preprocess(count = BATCH_SIZE): void {
   for (let i = 0; i < count; i++) bank.push(dealTriple(alphaShares))

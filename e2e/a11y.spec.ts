@@ -18,7 +18,7 @@ async function driveDemos(page: Page): Promise<void> {
 
   // Panel 1 — addition.
   await page.getByRole('button', { name: 'Share & add' }).click()
-  await expect(page.locator('#panel-add table.share-table')).toBeVisible()
+  await expect(page.locator('#panel-add table.share-table').first()).toBeVisible()
 
   // Panel 2 — Beaver stepper, all six steps.
   await page.getByRole('button', { name: 'Start multiplication' }).click()

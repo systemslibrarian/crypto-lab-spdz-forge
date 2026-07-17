@@ -44,6 +44,9 @@ export function openSpdz(shares: AuthShares, alphaShares: readonly bigint[]): Sp
  * square of the sum → n+1 triples), open only M, and divide by n² in the
  * clear. Individual inputs are never opened.
  */
+// [extension] point — generalize to n parties / other statistics (covariance,
+// regression): the circuit shape below (linear ops free, one triple per
+// multiplication) is the pattern any of them would follow.
 export const VARIANCE_INPUT_MAX = 1_000_000n
 
 export interface VarianceRun {

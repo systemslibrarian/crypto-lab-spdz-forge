@@ -60,12 +60,27 @@ export function renderBeaverPanel(mount: HTMLElement): void {
   onBankChange(refreshBank)
   refreshBank()
 
-  const partyCard = (i: number, rows: [string, Node][]): HTMLElement =>
+  interface Row {
+    label: string
+    val: Node
+    step: number
+  }
+
+  // Rows born in the current step get a one-shot highlight — motion that marks
+  // exactly which data this protocol step produced, nothing decorative.
+  const partyCard = (i: number, rows: Row[], currentStep: number): HTMLElement =>
     h(
       'div',
       { class: 'party-card' },
       h('h3', {}, PARTIES[i] as string),
-      ...rows.map(([label, val]) => h('p', { class: 'kv' }, h('span', { class: 'kv-label' }, label + ' '), val)),
+      ...rows.map((row) =>
+        h(
+          'p',
+          { class: row.step === currentStep ? 'kv fresh' : 'kv' },
+          h('span', { class: 'kv-label' }, row.label + ' '),
+          row.val,
+        ),
+      ),
     )
 
   const renderStep = (): void => {
@@ -78,21 +93,30 @@ export function renderBeaverPanel(mount: HTMLElement): void {
     const notes: HTMLElement[] = []
 
     for (let i = 0; i < 3; i++) {
-      const rows: [string, Node][] = []
+      const rows: Row[] = []
       if (r.step >= 0) {
-        rows.push([`xᵢ`, fe(r.xs[i]!.value)], [`yᵢ`, fe(r.ys[i]!.value)])
+        rows.push(
+          { label: 'xᵢ', val: fe(r.xs[i]!.value), step: 0 },
+          { label: 'yᵢ', val: fe(r.ys[i]!.value), step: 0 },
+        )
       }
       if (r.step >= 1) {
-        rows.push([`aᵢ`, fe(r.triple.a[i]!.value)], [`bᵢ`, fe(r.triple.b[i]!.value)], [`cᵢ`, fe(r.triple.c[i]!.value)])
+        rows.push(
+          { label: 'aᵢ', val: fe(r.triple.a[i]!.value), step: 1 },
+          { label: 'bᵢ', val: fe(r.triple.b[i]!.value), step: 1 },
+          { label: 'cᵢ', val: fe(r.triple.c[i]!.value), step: 1 },
+        )
       }
-      if (r.step >= 2) rows.push(['xᵢ − aᵢ →', fe(sub(r.xs[i]!.value, r.triple.a[i]!.value))])
-      if (r.step >= 3) rows.push(['yᵢ − bᵢ →', fe(sub(r.ys[i]!.value, r.triple.b[i]!.value))])
-      if (r.step >= 4) rows.push([`zᵢ`, fe(r.z[i]!.value)])
-      cards.push(partyCard(i, rows))
+      if (r.step >= 2) rows.push({ label: 'xᵢ − aᵢ →', val: fe(sub(r.xs[i]!.value, r.triple.a[i]!.value)), step: 2 })
+      if (r.step >= 3) rows.push({ label: 'yᵢ − bᵢ →', val: fe(sub(r.ys[i]!.value, r.triple.b[i]!.value)), step: 3 })
+      if (r.step >= 4) rows.push({ label: 'zᵢ', val: fe(r.z[i]!.value), step: 4 })
+      cards.push(partyCard(i, rows, r.step))
     }
 
-    if (r.step >= 2) wire.push(h('p', { class: 'kv' }, 'd = x − a = ', fe(r.d), ' (public)'))
-    if (r.step >= 3) wire.push(h('p', { class: 'kv' }, 'e = y − b = ', fe(r.e), ' (public)'))
+    if (r.step >= 2)
+      wire.push(h('p', { class: r.step === 2 ? 'kv fresh' : 'kv' }, 'd = x − a = ', fe(r.d), ' (public)'))
+    if (r.step >= 3)
+      wire.push(h('p', { class: r.step === 3 ? 'kv fresh' : 'kv' }, 'e = y − b = ', fe(r.e), ' (public)'))
 
     switch (r.step) {
       case 0:
@@ -151,6 +175,26 @@ export function renderBeaverPanel(mount: HTMLElement): void {
             'p',
             { class: 'note' },
             'The triple is now spent — one multiplication, one triple, gone (watch the bank counter above). That exchange rate is the online phase’s entire price list.',
+          ),
+          h(
+            'details',
+            {},
+            h('summary', {}, 'Inspect the MAC shares that rode along'),
+            h(
+              'p',
+              { class: 'note' },
+              'The MAC shares went through the same linear combination as the value shares, so the product arrived already authenticated — no extra round, no dealer help:',
+            ),
+            ...r.z.map((sh, i) => h('p', { class: 'kv' }, h('span', { class: 'kv-label' }, `γ(z)${['₀', '₁', '₂'][i]} = `), fe(sh.mac))),
+            h(
+              'p',
+              { class: 'kv' },
+              h('span', { class: 'kv-label' }, 'Check, computed live: '),
+              'Σᵢ (γ(z)ᵢ − αᵢ·z) = ',
+              fe(check.sum),
+              ' ',
+              check.sum === 0n ? chip('ok', '✓', 'exactly 0, as the algebra demands') : chip('alarm', '✗', 'non-zero — should be impossible here'),
+            ),
           ),
         )
         break

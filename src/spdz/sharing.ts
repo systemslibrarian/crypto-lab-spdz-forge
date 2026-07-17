@@ -55,6 +55,9 @@ export function openValue(shares: AuthShares): bigint {
   return shares.reduce((s, sh) => add(s, sh.value), 0n)
 }
 
+// [extension] point — batch checking: replace the single-value check with a
+// random-linear-combination check over many opened values (the paper's
+// amortized MACCheck), keeping this signature per value.
 /**
  * SPDZ MAC check on an opened value y.
  * Each party computes σ_i = γ(y)_i − α_i·y and (after a commitment round,

@@ -86,7 +86,51 @@ export function renderAdditionPanel(mount: HTMLElement): void {
       h(
         'p',
         { class: 'note' },
-        'The shares look nothing like 12 or 30 — each is a uniformly random field element, and any two of the three reveal nothing about the secret. Addition needed zero communication. Now try to do that for multiplication: x·y is not the sum of anything the parties hold locally. That is the problem the next panel solves.',
+        `The shares look nothing like ${x} or ${y} — each is a uniformly random field element, and any two of the three reveal nothing about the secret. Addition needed zero communication. Now try to do that for multiplication: x·y is not the sum of anything the parties hold locally. That is the problem the next panel solves.`,
+      ),
+      h(
+        'details',
+        {},
+        h('summary', {}, 'Inspect the MAC shares too'),
+        h(
+          'p',
+          { class: 'note' },
+          'Every value share travels with a MAC share — a share of α·x under the global key α nobody holds. MAC shares are additive too, so the sum is born authenticated: γ(x)ᵢ + γ(y)ᵢ is automatically a share of α·(x+y). This is why SPDZ gets addition (and every linear operation) authenticated for free.',
+        ),
+        h(
+          'div',
+          { class: 'scroll-x', tabindex: '0', role: 'region', 'aria-label': 'MAC share table for the addition' },
+          h(
+            'table',
+            { class: 'share-table' },
+            h(
+              'thead',
+              {},
+              h(
+                'tr',
+                {},
+                h('th', { scope: 'col' }, 'Party'),
+                h('th', { scope: 'col' }, 'γ(x)ᵢ'),
+                h('th', { scope: 'col' }, 'γ(y)ᵢ'),
+                h('th', { scope: 'col' }, 'γ(x)ᵢ + γ(y)ᵢ = γ(x+y)ᵢ'),
+              ),
+            ),
+            h(
+              'tbody',
+              {},
+              ...PARTIES.map((name, i) =>
+                h(
+                  'tr',
+                  {},
+                  h('th', { scope: 'row' }, name),
+                  h('td', {}, fe(xs[i]!.mac)),
+                  h('td', {}, fe(ys[i]!.mac)),
+                  h('td', {}, fe(sum[i]!.mac)),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     )
   }
