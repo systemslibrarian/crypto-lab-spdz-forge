@@ -1,0 +1,381 @@
+/* SPDZ Forge — theme tokens (dark default, light override; WCAG 2.1 AA in both). */
+
+:root {
+  --accent: #b45309;
+  --bg: #101214;
+  --panel: #181b1f;
+  --panel-2: #1f232a;
+  --border: #3a3f46;
+  --text: #e9eaec;
+  --text-dim: #b6bcc6;
+  --accent-text: #f5a524;
+  --accent-fill-ink: #ffffff;
+  --ok-text: #56d364;
+  --danger-text: #ff7b72;
+  --warn-text: #e3b341;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --accent: #b45309;
+  --bg: #faf9f7;
+  --panel: #ffffff;
+  --panel-2: #f3f1ec;
+  --border: #c9c3b8;
+  --text: #221f1c;
+  --text-dim: #5c564e;
+  --accent-text: #92400e;
+  --accent-fill-ink: #ffffff;
+  --ok-text: #116329;
+  --danger-text: #b42318;
+  --warn-text: #805500;
+  color-scheme: light;
+}
+
+html {
+  background-color: var(--bg);
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.55;
+}
+
+#app {
+  max-width: 68rem;
+  margin: 0 auto;
+  padding: 0 clamp(0.8rem, 3vw, 1.6rem) 2rem;
+}
+
+#app a {
+  color: var(--accent-text);
+  text-decoration: underline;
+}
+
+#app h2 {
+  font-size: 1.35rem;
+  margin: 0 0 0.35rem;
+}
+
+#app h3 {
+  font-size: 1.02rem;
+  margin: 1rem 0 0.35rem;
+}
+
+#app section.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.1rem 1.25rem 1.25rem;
+  margin: 1.25rem 0;
+}
+
+#app .panel-kicker {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  color: var(--accent-text);
+  margin-bottom: 0.2rem;
+}
+
+#app p {
+  margin: 0.55rem 0;
+}
+
+#app .note {
+  color: var(--text-dim);
+  font-size: 0.92rem;
+  max-width: 75ch;
+}
+
+#app .what-this-isnt {
+  border-left: 3px solid var(--border);
+  padding-left: 0.8rem;
+}
+
+/* Controls */
+#app .controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.7rem;
+  margin: 0.8rem 0;
+}
+
+#app label {
+  font-size: 0.92rem;
+  color: var(--text);
+}
+
+#app input[type='text'] {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.42rem 0.6rem;
+  font: inherit;
+  width: 7.5rem;
+}
+
+#app input[type='checkbox'] {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--accent);
+}
+
+#app button {
+  background: var(--accent);
+  color: var(--accent-fill-ink);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0.48rem 0.9rem;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#app button:hover {
+  filter: brightness(1.12);
+}
+
+#app button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+#app button.danger-btn {
+  background: transparent;
+  color: var(--danger-text);
+  border-color: var(--danger-text);
+}
+
+#app :is(a, button, input, [tabindex='0']):focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+/* Field elements & tables */
+#app code.fe {
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: 0.88em;
+  word-break: break-all;
+  background: var(--panel-2);
+  border-radius: 4px;
+  padding: 0.05rem 0.3rem;
+}
+
+#app .scroll-x {
+  overflow-x: auto;
+  margin: 0.6rem 0;
+}
+
+#app table.share-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+#app table.share-table :is(th, td) {
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.55rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+#app table.share-table thead th {
+  background: var(--panel-2);
+}
+
+#app tr.you-row {
+  background: color-mix(in oklab, var(--accent) 14%, transparent);
+}
+
+#app .edited-tag {
+  color: var(--warn-text);
+  font-style: italic;
+}
+
+/* Chips — icon + text + color, never color alone */
+#app .chip {
+  display: inline-block;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0.1rem 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: color-mix(in oklab, currentColor 10%, transparent);
+}
+
+#app .chip-ok {
+  color: var(--ok-text);
+}
+
+#app .chip-alarm {
+  color: var(--danger-text);
+}
+
+#app .chip-warn {
+  color: var(--warn-text);
+}
+
+#app .chip-neutral {
+  color: var(--text-dim);
+}
+
+/* Party cards & wire */
+#app .party-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin: 0.7rem 0;
+}
+
+#app .party-card {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.7rem 0.8rem;
+}
+
+#app .party-card h3 {
+  margin: 0 0 0.4rem;
+}
+
+#app .kv {
+  margin: 0.25rem 0;
+}
+
+#app .kv-label {
+  color: var(--text-dim);
+  font-size: 0.88rem;
+}
+
+#app .step-title {
+  color: var(--accent-text);
+}
+
+#app .wire {
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  padding: 0.55rem 0.85rem;
+  margin: 0.7rem 0;
+}
+
+#app .wire-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--text-dim);
+  margin: 0 0 0.2rem;
+}
+
+/* MAC panel columns */
+#app .proto-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin: 0.7rem 0;
+}
+
+#app .proto-col {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+}
+
+#app .proto-col h3 {
+  margin: 0 0 0.5rem;
+}
+
+/* Triple bank */
+#app .bank-chip {
+  font-size: 0.88rem;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.15rem 0.65rem;
+}
+
+#app .meter {
+  height: 0.7rem;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  max-width: 26rem;
+  margin: 0.4rem 0;
+}
+
+#app .meter-fill {
+  height: 100%;
+  background: var(--accent-text);
+  transition: width 0.3s ease;
+}
+
+/* Progressive disclosure */
+#app details {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.6rem 0.9rem;
+  margin: 0.8rem 0;
+}
+
+#app details summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+#app .result-region:empty {
+  display: none;
+}
+
+/* Scripture footer */
+.scripture-footer {
+  max-width: 68rem;
+  margin: 2.5rem auto 0;
+  padding: 1.2rem clamp(0.8rem, 3vw, 1.6rem) 2rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 0.92rem;
+}
+
+.scripture-footer a {
+  color: var(--accent-text);
+  text-decoration: underline;
+}
+
+/* Motion discipline & stacking */
+@media (prefers-reduced-motion: reduce) {
+  #app * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  #app .party-row,
+  #app .proto-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* BEGIN cl-hero standard — managed, keep in sync across fleet */
+.cl-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:clamp(1rem,4vw,3rem);flex-wrap:wrap;margin:clamp(1rem,3vw,2rem) 0 1.5rem;}
+.cl-hero-main{flex:1 1 22rem;min-width:min(100%,20rem);}
+.cl-hero-title{margin:0;font-size:clamp(1.6rem,3.8vw,2.7rem);font-weight:700;line-height:1.1;letter-spacing:.01em;}
+.cl-hero-sub{margin:.4rem 0 0;font-size:clamp(.9rem,1.6vw,1.05rem);letter-spacing:.01em;opacity:.85;}
+.cl-hero-desc{margin:.55rem 0 0;font-size:1rem;line-height:1.5;color:var(--text-dim);max-width:60ch;}
+.cl-hero-why{flex:0 1 min(40%,26rem);min-width:min(100%,15rem);border:1px solid var(--border);border-radius:10px;padding:.85rem 1.05rem;background:color-mix(in oklab,var(--accent) 6%,transparent);}
+.cl-hero-why-label{display:block;font-size:.68rem;font-weight:700;letter-spacing:.14em;}
+.cl-hero-why-text{margin:.35rem 0 0;font-size:.95rem;line-height:1.5;}
+@media (max-width:640px){.cl-hero{flex-direction:column;}.cl-hero-why{flex-basis:auto;width:100%;}}
+/* END cl-hero standard */
+
+.cl-hero-why-label {
+  color: var(--accent-text);
+}

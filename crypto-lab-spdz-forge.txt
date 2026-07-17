@@ -1,0 +1,26 @@
+NEW DEMO BRIEF
+- Repo name:         crypto-lab-spdz-forge
+- Short name (H1):   SPDZ Forge
+- Subtitle:          Malicious-secure arithmetic MPC · Beaver triples · MACs
+- One-liner:         Three parties multiply secret-shared numbers they cannot see, and when one of them lies about their share, the arithmetic itself catches it.
+- Concept to teach:  Shamir and Yao assume the parties follow the protocol. SPDZ doesn't. Every share carries an information-theoretic MAC under a key nobody holds, so a party who submits a wrong share produces a MAC that doesn't check — and the honest parties abort rather than accept a wrong answer. Semi-honest MPC computes correctly if everyone behaves. Malicious-secure MPC tells you when they didn't.
+- Primitives/spec:   SPDZ (Damgård-Pastro-Smart-Zakarias 2012), additive secret sharing over a prime field, Beaver multiplication triples, information-theoretic MACs with a globally-shared secret MAC key, offline preprocessing vs online phase, MAC check / abort, dishonest-majority security
+- Accent (--accent): #B45309
+- Favicon emoji:     🔨
+- In scope:
+    * Real arithmetic over a real prime field. Three parties, additive shares, real Beaver triples, real MAC computation and checking. All shares inspectable.
+    * Addition is free — establish it first: shares add locally, no communication, done. One panel. Then the question the lab exists for: multiplication needs the product of two secrets nobody knows. How?
+    * THE BEAVER TRIPLE — the first headline mechanism. Preprocessed random (a, b, c) with c = a·b, shared out, values unknown to everyone:
+        To compute x·y:
+          reveal  d = x - a     (safe: a is random, d leaks nothing)
+          reveal  e = y - b     (safe: b is random, e leaks nothing)
+          compute x·y = c + d·b + e·a + d·e     ← locally, from shares
+      Animate it. Show d and e being public and genuinely revealing nothing (toggle a's randomness and watch x leak the moment a is reused — that's the break-it). Show the triple being consumed: one multiply, one triple, gone. The offline/online split is the whole architecture and this is where it becomes visible.
+    * THE MAC CHECK — the second headline, and the reason for the lab. Every share x_i carries γ(x)_i, a share of α·x under global MAC key α that no party holds. The learner plays the malicious party: edit your share before the reveal.
+        Semi-honest protocol (MAC off): wrong share → wrong answer → EVERYONE ACCEPTS IT. Verdict: ALARM.
+        SPDZ (MAC on):                  wrong share → MAC check fails → ABORT. Verdict: correct.
+      Same tampering, two protocols, side by side. The learner causes both.
+    * Abort, not correct: state it plainly. SPDZ detects cheating; it does not compute the right answer despite cheating, and it does not identify WHO cheated (that's identifiable abort — name it, don't build it). Precision surface: do not overclaim.
+    * Offline/online panel: show the preprocessing cost (triples are expensive, generated before inputs exist) against the online cost (fast, one triple per multiply). This is why SPDZ is deployable and why real systems bank triples in advance.
+    * Application panel: a real computation — three hospitals compute a variance (needs multiplication, which silent-tally's addition-only MPC cannot do). Link silent-tally explicitly as the semi-honest, addition-only predecessor.
+- Non-goals:         Not a garbled-circuits lab (link garbled-gate — Yao is two-party boolean, this is n-party arithmetic; one line). Not a Shamir lab (link shamir-gate, silent-tally — those are honest-majority and addition-only). Not an OT lab (link ot-gate). No triple-generation-via-SHE build-out — triples are dealt by a trusted dealer in this demo, and that must be stated in-page as the modeled part. No identifiable abort. No MASCOT/Overdrive.
