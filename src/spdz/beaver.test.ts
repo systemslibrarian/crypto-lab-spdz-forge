@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { P, mul, randFieldElement, sub } from './field'
-import { beaverMul, beaverMulUnsafe, dealTriple, sumShares } from './beaver'
-import { dealMacKey, macCheck, openValue, shareSecret } from './sharing'
+import { P, add, mul, randFieldElement, sub } from './field'
+import { beaverMul, beaverMulChecked, beaverMulUnsafe, combineWithOpenings, dealTriple, sumShares } from './beaver'
+import { dealMacKey, macCheck, openValue, shareSecret, subShares } from './sharing'
 
 const alpha = dealMacKey()
 
@@ -41,6 +41,75 @@ describe('Beaver-triple multiplication', () => {
     const y = shareSecret(3n, alpha)
     beaverMul(x, y, t, alpha)
     expect(() => beaverMul(x, y, t, alpha)).toThrow(/single-use/)
+  })
+
+  it('GS-01: a lie during the d opening ABORTS before any product is accepted', () => {
+    for (const party of [0, 1, 2]) {
+      const result = beaverMulChecked(
+        shareSecret(6n, alpha),
+        shareSecret(7n, alpha),
+        dealTriple(alpha),
+        alpha,
+        { d: { party, delta: 9n } },
+      )
+      expect(result.kind).toBe('abort')
+      if (result.kind === 'abort') expect(result.at).toBe('d')
+    }
+  })
+
+  it('GS-01: a lie during the e opening independently ABORTS', () => {
+    const result = beaverMulChecked(
+      shareSecret(6n, alpha),
+      shareSecret(7n, alpha),
+      dealTriple(alpha),
+      alpha,
+      { e: { party: 2, delta: 123456n } },
+    )
+    expect(result.kind).toBe('abort')
+    if (result.kind === 'abort') expect(result.at).toBe('e')
+  })
+
+  it('GS-01 regression: checking ONLY the final product would MISS the opening attack', () => {
+    // A corrupt party shifts the public d by δ. Everyone computes
+    // z' = xy + δ·y — and because MACs ride the same linear map, z' carries
+    // a perfectly valid MAC. This is the attack authenticated openings exist for.
+    const x = 6n
+    const y = 7n
+    const delta = 9n
+    const t = dealTriple(alpha)
+    const xs = shareSecret(x, alpha)
+    const ys = shareSecret(y, alpha)
+    const dTrue = openValue(subShares(xs, t.a))
+    const eTrue = openValue(subShares(ys, t.b))
+    const zEvil = combineWithOpenings(t, add(dTrue, delta), eTrue, alpha)
+    const opened = openValue(zEvil)
+    expect(opened).not.toBe(mul(x, y)) // the product is genuinely wrong…
+    expect(opened).toBe(add(mul(x, y), mul(delta, y))) // …by exactly z' = xy + δ·y…
+    expect(macCheck(opened, zEvil, alpha).ok).toBe(true) // …and the final MAC check PASSES on it
+  })
+
+  it('honest checked multiplication reports both opening checks as passed', () => {
+    const result = beaverMulChecked(
+      shareSecret(6n, alpha),
+      shareSecret(7n, alpha),
+      dealTriple(alpha),
+      alpha,
+    )
+    expect(result.kind).toBe('ok')
+    if (result.kind === 'ok') {
+      expect(result.dCheck.ok).toBe(true)
+      expect(result.eCheck.ok).toBe(true)
+      expect(openValue(result.z)).toBe(42n)
+    }
+  })
+
+  it('an aborted multiplication still consumes the triple (its randomness is burnt)', () => {
+    const t = dealTriple(alpha)
+    const result = beaverMulChecked(shareSecret(2n, alpha), shareSecret(3n, alpha), t, alpha, {
+      d: { party: 0, delta: 1n },
+    })
+    expect(result.kind).toBe('abort')
+    expect(t.consumed).toBe(true)
   })
 
   it('BREAK-IT: reusing a triple leaks the difference of the secrets through public d values', () => {

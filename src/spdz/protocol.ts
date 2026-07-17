@@ -10,7 +10,7 @@
  */
 
 import { randFieldElement, type RandFn } from './field'
-import { beaverMul, sumShares } from './beaver'
+import { beaverMulChecked, sumShares } from './beaver'
 import { macCheck, mulPublic, openValue, shareSecret, subShares } from './sharing'
 import type { AuthShares, MacCheckResult, Triple } from './types'
 
@@ -43,19 +43,35 @@ export function openSpdz(shares: AuthShares, alphaShares: readonly bigint[]): Sp
  * inside the field (n multiplications for the squares plus one for the
  * square of the sum → n+1 triples), open only M, and divide by n² in the
  * clear. Individual inputs are never opened.
+ *
+ * Every multiplication runs through the same authenticated-opening path as
+ * the Beaver panel (beaverMulChecked) — there is no private bypass. An abort
+ * outcome deliberately carries NO party attribution: from inside the
+ * protocol, all the participants learn is that a check failed.
  */
 // [extension] point — generalize to n parties / other statistics (covariance,
 // regression): the circuit shape below (linear ops free, one triple per
 // multiplication) is the pattern any of them would follow.
 export const VARIANCE_INPUT_MAX = 1_000_000n
 
+export type VarianceOutcome =
+  | { kind: 'accepted'; value: bigint; check: MacCheckResult }
+  | { kind: 'abort'; stage: 'opening' | 'final'; check: MacCheckResult }
+
 export interface VarianceRun {
-  /** Opened numerator M = n²·Var — the only value ever opened. */
-  numerator: SpdzOpen
-  /** Triples consumed (n + 1). */
+  /** Outcome for the numerator M = n²·Var — the only value ever opened. */
+  numerator: VarianceOutcome
+  /** Triples consumed (n + 1 on a run that reaches the final open). */
   triplesUsed: number
-  /** Public transcript values d, e from each multiplication. */
+  /** Public transcript values d, e from each completed multiplication. */
   transcripts: { d: bigint; e: bigint }[]
+}
+
+export interface VarianceTampering {
+  /** Alter the final opened numerator's shares (a lie at the last reveal). */
+  finalOpen?: (numeratorShares: AuthShares) => AuthShares
+  /** Lie during one multiplication's opening broadcast. */
+  opening?: { mulIndex: number; at: 'd' | 'e'; party: number; delta: bigint }
 }
 
 export function varianceOverMpc(
@@ -63,7 +79,7 @@ export function varianceOverMpc(
   alphaShares: readonly bigint[],
   triples: Triple[],
   rand: RandFn = randFieldElement,
-  tamper?: (sumOfSquares: AuthShares) => AuthShares,
+  tampering?: VarianceTampering,
 ): VarianceRun {
   const n = BigInt(inputs.length)
   for (const v of inputs) {
@@ -79,24 +95,44 @@ export function varianceOverMpc(
   const transcripts: { d: bigint; e: bigint }[] = []
   let used = 0
 
+  const multiply = (lhs: AuthShares, rhs: AuthShares): AuthShares | VarianceOutcome => {
+    const mulIndex = used
+    const tamper =
+      tampering?.opening && tampering.opening.mulIndex === mulIndex
+        ? { [tampering.opening.at]: { party: tampering.opening.party, delta: tampering.opening.delta } }
+        : undefined
+    const result = beaverMulChecked(lhs, rhs, triples[used++] as Triple, alphaShares, tamper)
+    if (result.kind === 'abort') {
+      return { kind: 'abort', stage: 'opening', check: result.check }
+    }
+    transcripts.push(result.transcript)
+    return result.z
+  }
+
   // Σv² — one triple per square.
-  const squares = shared.map((s) => {
-    const { z, transcript } = beaverMul(s, s, triples[used++] as Triple, alphaShares)
-    transcripts.push(transcript)
-    return z
-  })
+  const squares: AuthShares[] = []
+  for (const s of shared) {
+    const out = multiply(s, s)
+    if (!Array.isArray(out)) return { numerator: out, triplesUsed: used, transcripts }
+    squares.push(out)
+  }
   const sumSq = sumShares(squares)
 
   // (Σv)² — sum is free, the square costs one more triple.
   const total = sumShares(shared)
-  const { z: totalSq, transcript } = beaverMul(total, total, triples[used++] as Triple, alphaShares)
-  transcripts.push(transcript)
+  const totalSqOut = multiply(total, total)
+  if (!Array.isArray(totalSqOut)) return { numerator: totalSqOut, triplesUsed: used, transcripts }
 
   // M = n·Σv² − (Σv)², computed locally on shares.
-  let numeratorShares = subShares(mulPublic(sumSq, n), totalSq)
-  if (tamper) numeratorShares = tamper(numeratorShares)
+  let numeratorShares = subShares(mulPublic(sumSq, n), totalSqOut)
+  if (tampering?.finalOpen) numeratorShares = tampering.finalOpen(numeratorShares)
 
-  return { numerator: openSpdz(numeratorShares, alphaShares), triplesUsed: used, transcripts }
+  const final = openSpdz(numeratorShares, alphaShares)
+  const numerator: VarianceOutcome =
+    final.kind === 'accepted'
+      ? { kind: 'accepted', value: final.value, check: final.check }
+      : { kind: 'abort', stage: 'final', check: final.check }
+  return { numerator, triplesUsed: used, transcripts }
 }
 
 /** Clear-text variance from the opened numerator: Var = M / n². Exact by construction. */

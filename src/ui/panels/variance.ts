@@ -53,7 +53,7 @@ export function renderVariancePanel(mount: HTMLElement): void {
       alphaShares,
       triples,
       undefined,
-      lying ? (num) => tamperShare(num, 1, 7n) : undefined,
+      lying ? { finalOpen: (num) => tamperShare(num, 1, 7n) } : undefined,
     )
 
     out.append(
@@ -68,11 +68,17 @@ export function renderVariancePanel(mount: HTMLElement): void {
     if (runResult.numerator.kind === 'abort') {
       out.append(
         h('p', { class: 'kv' }, h('span', { class: 'kv-label' }, 'Protocol outcome: '), chip('neutral', '▸', 'ABORT — no statistic released')),
-        h('p', { class: 'kv' }, h('span', { class: 'kv-label' }, 'Verdict: '), chip('ok', '✓', "cheating detected — St. Mary's tampered contribution failed the MAC check")),
+        h('p', { class: 'kv' }, h('span', { class: 'kv-label' }, 'Verdict: '), chip('ok', '✓', 'a MAC inconsistency was detected — abort is the correct behavior')),
         h(
           'p',
           { class: 'note' },
-          'The hospitals learn that the result cannot be trusted and stop — they do not get a corrected statistic, and they do not learn which hospital cheated.',
+          'That verdict is everything the participants learn. They do not get a corrected statistic, and nothing in the protocol transcript says which hospital cheated — abort detects, it does not attribute.',
+        ),
+        h(
+          'p',
+          { class: 'note lab-note' },
+          h('strong', {}, 'Lab control (omniscient view): '),
+          'the scenario checkbox you ticked altered one hospital’s contribution before the final reveal. You know that because you are outside the protocol looking in; the three hospitals cannot see it.',
         ),
       )
       return
@@ -120,7 +126,7 @@ export function renderVariancePanel(mount: HTMLElement): void {
       'div',
       { class: 'controls' },
       lieBox,
-      h('label', { for: 'var-lie' }, "St. Mary's lies during the final open"),
+      h('label', { for: 'var-lie' }, "Scenario control: make St. Mary's lie during the final open"),
       h('button', { type: 'button', onclick: run }, 'Compute variance over MPC'),
     ),
     out,

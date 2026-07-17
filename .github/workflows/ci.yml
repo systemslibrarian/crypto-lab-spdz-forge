@@ -1,0 +1,26 @@
+name: CI (pull requests)
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Unit tests (Vitest, incl. KATs and adversarial paths)
+        run: npm test
+      - name: Build (typecheck gates the build)
+        run: npm run build
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Browser tests (behavior + axe a11y gate, both themes)
+        run: npm run test:a11y

@@ -260,19 +260,62 @@
             Field: F<sub>p</sub>, p = 2⁶¹ − 1 (Mersenne; the same field MP-SPDZ's Mersenne61
             backend uses), BigInt arithmetic, uniform sampling by rejection from the platform
             CSPRNG. Sharing: x ↦ (x₀, x₁, x₂) additive, with γ(x)ᵢ additive shares of α·x; α itself
-            additively shared at setup. Openings are sums; the MAC check on an opened y computes
-            σᵢ = γ(y)ᵢ − αᵢ·y and requires Σσᵢ = 0. Multiplication is Beaver's: open d = x − a,
-            e = y − b, set [z] = [c] + d·[b] + e·[a] + d·e, with MACs carried through the same
-            linear map. A cheater passes the check with probability exactly 1/p ≈ 4.3×10⁻¹⁹.
+            additively shared at setup. The MAC check on an opened y computes σᵢ = γ(y)ᵢ − αᵢ·y and
+            requires Σσᵢ = 0. Multiplication is Beaver's: open d = x − a, e = y − b, set
+            [z] = [c] + d·[b] + e·[a] + d·e, with MACs carried through the same linear map.
+            <strong>Every protocol opening is authenticated, including d and e</strong> — a lie in
+            an opening produces an authenticated wrong product (z′ = xy + δy with a valid MAC), so
+            the final check alone cannot catch it; the second Beaver break-it demonstrates exactly
+            this. The check-share exchange is order-bound by commit-then-open (real SHA-256 over
+            random nonces); the MAC panel's advanced break-it shows the adaptive cancellation that
+            succeeds without it. A cheater whose messages are fixed before reveals passes with
+            probability exactly 1/p ≈ 4.3×10⁻¹⁹.
           </p>
           <p class="note">
             Modeled/simplified relative to the paper: triples (and all shares) come from a trusted
-            dealer — no SHE/ZK offline phase; the MAC-check commitment round is collapsed (σᵢ are
-            summed directly rather than committed-then-opened); single opened values are checked
-            individually rather than batched with a random linear combination; and all three
-            parties run in one browser tab, so network adversaries are out of scope. None of these
+            dealer — no SHE/ZK offline phase; opened values are checked individually rather than
+            batched with a random linear combination (the paper draws the batch coefficients after
+            the opened values are fixed); and all three parties run in one browser tab, so the
+            commitment round models message ordering rather than a real network. None of these
             change the algebra being taught.
           </p>
+        </details>
+        <details>
+          <summary>Threat-model matrix: what this lab does vs a real SPDZ deployment</summary>
+          <div class="scroll-x" tabindex="0" role="region" aria-label="Threat model comparison table">
+            <table class="share-table">
+              <thead>
+                <tr>
+                  <th scope="col">Property</th>
+                  <th scope="col">This lab</th>
+                  <th scope="col">Full SPDZ-family deployment</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><th scope="row">Field / share / MAC algebra</th><td>Implemented (BigInt, CSPRNG)</td><td>Implemented</td></tr>
+                <tr><th scope="row">Corruption threshold</th><td>The SPDZ theorem allows up to n−1 corruptions; this page executes one designated cheater at a time</td><td>Up to n−1, depending on the family variant and setup</td></tr>
+                <tr><th scope="row">Input protocol</th><td>Trusted dealer shares inputs</td><td>Authenticated input procedure</td></tr>
+                <tr><th scope="row">Triple generation</th><td>Trusted dealer</td><td>SHE- or OT-based preprocessing with sacrifice checks</td></tr>
+                <tr><th scope="row">Opening authentication</th><td>Implemented for every opening, incl. d and e</td><td>Required</td></tr>
+                <tr><th scope="row">MAC-check ordering</th><td>Commit-then-open (SHA-256), single tab models the network order</td><td>Network protocol with commitments</td></tr>
+                <tr><th scope="row">Batched checking</th><td>Single-value checks (pedagogical case)</td><td>Random linear combination, amortized</td></tr>
+                <tr><th scope="row">Network, scheduling, replay</th><td>Not modeled (one browser tab)</td><td>Required</td></tr>
+                <tr><th scope="row">Fairness / guaranteed output</th><td>Not provided — abort only</td><td>Generally abort, not guaranteed output</td></tr>
+                <tr><th scope="row">Identifiable abort</th><td>Not provided (named, not built)</td><td>Separate stronger variants</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+        <details>
+          <summary>Primary sources</summary>
+          <ul class="note">
+            <li><a href="https://eprint.iacr.org/2011/535">Damgård, Pastro, Smart, Zakarias — Multiparty Computation from Somewhat Homomorphic Encryption (SPDZ, 2012)</a> — the protocol, MACs, offline/online split, dishonest-majority claim.</li>
+            <li><a href="https://link.springer.com/chapter/10.1007/3-540-46766-1_34">Beaver — Efficient Multiparty Protocols Using Circuit Randomization (CRYPTO '91)</a> — the multiplication triple.</li>
+            <li><a href="https://eprint.iacr.org/2016/505">Keller, Orsini, Scholl — MASCOT (2016)</a> — OT-based triple generation (named, not built here).</li>
+            <li><a href="https://eprint.iacr.org/2017/1230">Keller, Pastro, Rotaru — Overdrive (2018)</a> — faster SHE preprocessing (named, not built here).</li>
+            <li><a href="https://github.com/data61/MP-SPDZ">MP-SPDZ</a> — the framework whose Mersenne61 backend uses this exact field; its MAC_Check implements the commit-then-open, batched check this page teaches the single-value case of.</li>
+            <li><a href="https://github.com/KULeuven-COSIC/SCALE-MAMBA">SCALE-MAMBA</a> — another SPDZ-family implementation.</li>
+          </ul>
         </details>
       </section>
 

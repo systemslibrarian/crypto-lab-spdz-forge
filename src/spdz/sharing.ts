@@ -75,6 +75,26 @@ export function macCheck(
   return { ok: sum === 0n, sigmas, sum }
 }
 
+/** Result of an authenticated opening: the reconstructed value plus its MAC verdict. */
+export interface AuthOpen {
+  value: bigint
+  check: MacCheckResult
+  ok: boolean
+}
+
+/**
+ * Authenticated opening — the ONLY way an honest SPDZ party accepts an opened
+ * value, including the intermediate Beaver openings d and e. Reconstructing
+ * without checking (openValue alone) is an inspection primitive, not a
+ * protocol step: a final-product MAC cannot repair a lie told during an
+ * earlier opening (see beaver.test.ts, "final check alone misses it").
+ */
+export function openAuthenticated(shares: AuthShares, alphaShares: readonly bigint[]): AuthOpen {
+  const value = openValue(shares)
+  const check = macCheck(value, shares, alphaShares)
+  return { value, check, ok: check.ok }
+}
+
 /** [x] + [y] — purely local: each party adds its shares. No communication. */
 export function addShares(x: AuthShares, y: AuthShares): AuthShares {
   return x.map((sx, i) => {

@@ -9,10 +9,10 @@
  * the public wire leak x − x′ — the exact reason a triple is single-use.
  */
 
-import { mul, sub } from '../../spdz/field'
-import { beaverMul, beaverMulUnsafe } from '../../spdz/beaver'
-import { macCheck, openValue, shareSecret } from '../../spdz/sharing'
-import type { AuthShares, Triple } from '../../spdz/types'
+import { add, mul, sub } from '../../spdz/field'
+import { beaverMulChecked, beaverMulUnsafe, combineWithOpenings } from '../../spdz/beaver'
+import { macCheck, openAuthenticated, openValue, shareSecret, subShares, tamperShare } from '../../spdz/sharing'
+import type { AuthShares, MacCheckResult, Triple } from '../../spdz/types'
 import { alphaShares, bankStats, onBankChange, preprocess, takeTriples } from '../state'
 import { chip, clear, fe, h } from '../dom'
 
@@ -26,6 +26,8 @@ interface Run {
   triple: Triple
   d: bigint
   e: bigint
+  dCheck: MacCheckResult
+  eCheck: MacCheckResult
   z: AuthShares
   step: number
 }
@@ -114,9 +116,31 @@ export function renderBeaverPanel(mount: HTMLElement): void {
     }
 
     if (r.step >= 2)
-      wire.push(h('p', { class: r.step === 2 ? 'kv fresh' : 'kv' }, 'd = x − a = ', fe(r.d), ' (public)'))
+      wire.push(
+        h(
+          'p',
+          { class: r.step === 2 ? 'kv fresh' : 'kv' },
+          'd = x − a = ',
+          fe(r.d),
+          ' (public) ',
+          r.dCheck.ok
+            ? chip('ok', '✓', 'opening MAC-checked')
+            : chip('alarm', '✗', 'opening check failed'),
+        ),
+      )
     if (r.step >= 3)
-      wire.push(h('p', { class: r.step === 3 ? 'kv fresh' : 'kv' }, 'e = y − b = ', fe(r.e), ' (public)'))
+      wire.push(
+        h(
+          'p',
+          { class: r.step === 3 ? 'kv fresh' : 'kv' },
+          'e = y − b = ',
+          fe(r.e),
+          ' (public) ',
+          r.eCheck.ok
+            ? chip('ok', '✓', 'opening MAC-checked')
+            : chip('alarm', '✗', 'opening check failed'),
+        ),
+      )
 
     switch (r.step) {
       case 0:
@@ -138,7 +162,7 @@ export function renderBeaverPanel(mount: HTMLElement): void {
           h(
             'p',
             { class: 'note' },
-            'd is safe to publish: a is uniformly random and used exactly once, so d = x − a is itself a uniformly random field element. Anyone watching the wire learns nothing about x. (The break-it below shows how this guarantee dies the moment a is reused.)',
+            'd is safe to publish: a is uniformly random and used exactly once, so d = x − a is itself a uniformly random field element. Anyone watching the wire learns nothing about x. (The break-it below shows how this guarantee dies the moment a is reused.) Note the check chip: the opening itself is MAC-authenticated. That is not ceremony — the second break-it below shows the attack that slips through if the parties skip it.',
           ),
         )
         break
@@ -241,8 +265,24 @@ export function renderBeaverPanel(mount: HTMLElement): void {
     const triple = taken[0] as Triple
     const xs = shareSecret(x, alphaShares)
     const ys = shareSecret(y, alphaShares)
-    const { z, transcript } = beaverMul(xs, ys, triple, alphaShares)
-    run = { x, y, xs, ys, triple, d: transcript.d, e: transcript.e, z, step: 0 }
+    const result = beaverMulChecked(xs, ys, triple, alphaShares)
+    if (result.kind === 'abort') {
+      stage.append(chip('alarm', '✗', 'An honest run aborted — impossible unless the lab has a bug.'))
+      return
+    }
+    run = {
+      x,
+      y,
+      xs,
+      ys,
+      triple,
+      d: result.transcript.d,
+      e: result.transcript.e,
+      dCheck: result.dCheck,
+      eCheck: result.eCheck,
+      z: result.z,
+      step: 0,
+    }
     renderStep()
   }
 
@@ -271,7 +311,12 @@ export function renderBeaverPanel(mount: HTMLElement): void {
           out.append(chip('warn', '⚠', 'No fresh triple available — run preprocessing below first.'))
           return
         }
-        transcript = beaverMul(xs2, r.ys, taken[0] as Triple, alphaShares).transcript
+        const fresh = beaverMulChecked(xs2, r.ys, taken[0] as Triple, alphaShares)
+        if (fresh.kind === 'abort') {
+          out.append(chip('alarm', '✗', 'Honest run aborted — impossible unless the lab has a bug.'))
+          return
+        }
+        transcript = fresh.transcript
       }
       const diff = sub(r.d, transcript.d)
       const trueDiff = sub(r.x, x2)
@@ -306,6 +351,132 @@ export function renderBeaverPanel(mount: HTMLElement): void {
         x2Input,
         h('button', { type: 'button', class: 'danger-btn', onclick: () => attack(true) }, 'Reuse the spent triple'),
         h('button', { type: 'button', onclick: () => attack(false) }, 'Use a fresh triple'),
+      ),
+      out,
+    )
+    renderOpeningAttack()
+  }
+
+  const renderOpeningAttack = (): void => {
+    if (!run) return
+    const r = run
+    const deltaInput = h('input', { id: 'mul-ddelta', type: 'text', inputmode: 'numeric', value: '9' })
+    const out = h('div', { class: 'result-region', role: 'status', 'aria-live': 'polite' })
+
+    const attack = (): void => {
+      clear(out)
+      const raw = deltaInput.value.trim()
+      if (!/^\d{1,9}$/.test(raw) || BigInt(raw) === 0n) {
+        out.append(chip('warn', '⚠', 'The lie must be a non-zero whole number of at most 9 digits.'))
+        return
+      }
+      const delta = BigInt(raw)
+      const taken = takeTriples(1)
+      if (!taken) {
+        out.append(
+          h(
+            'p',
+            {},
+            chip('warn', '⚠', 'No triple available for the attack run.'),
+            ' ',
+            h('button', { type: 'button', onclick: () => { preprocess(); attack() } }, 'Run preprocessing now'),
+          ),
+        )
+        return
+      }
+      const t = taken[0] as Triple
+      t.consumed = true
+      // You (P₁) lie in the broadcast that opens d: your share of x − a is off by δ.
+      const dShares = tamperShare(subShares(r.xs, t.a), 1, delta)
+      const dOpen = openAuthenticated(dShares, alphaShares)
+      const eOpen = openAuthenticated(subShares(r.ys, t.b), alphaShares)
+
+      // Counterfactual: parties who skip opening checks continue with the lied d.
+      const zEvil = combineWithOpenings(t, dOpen.value, eOpen.value, alphaShares)
+      const zOpened = openValue(zEvil)
+      const finalCheck = macCheck(zOpened, zEvil, alphaShares)
+      const trueProduct = mul(r.x, r.y)
+
+      out.append(
+        h(
+          'div',
+          { class: 'proto-row' },
+          h(
+            'div',
+            { class: 'proto-col' },
+            h('h3', {}, 'Parties who skip the opening check'),
+            h('p', { class: 'kv' }, h('span', { class: 'kv-label' }, 'They compute z′ = '), fe(zOpened)),
+            h(
+              'p',
+              { class: 'kv' },
+              h('span', { class: 'kv-label' }, 'True product: '),
+              fe(trueProduct),
+              ' — z′ = x·y + δ·y = ',
+              fe(add(trueProduct, mul(delta, r.y))),
+            ),
+            h(
+              'p',
+              { class: 'kv' },
+              h('span', { class: 'kv-label' }, 'Final MAC check on z′: '),
+              finalCheck.ok ? chip('neutral', '▸', 'PASSES — Σσᵢ = 0') : chip('neutral', '▸', 'fails'),
+            ),
+            h(
+              'p',
+              { class: 'kv' },
+              h('span', { class: 'kv-label' }, 'Verdict: '),
+              chip('alarm', '✗', 'a WRONG product with a perfectly VALID MAC'),
+            ),
+            h(
+              'p',
+              { class: 'note' },
+              'The MAC shares rode the same linear combination as the lie, so they authenticate z′ faithfully. A final check can never repair an unauthenticated opening.',
+            ),
+          ),
+          h(
+            'div',
+            { class: 'proto-col' },
+            h('h3', {}, 'SPDZ: the opening itself is checked'),
+            h(
+              'p',
+              { class: 'kv' },
+              h('span', { class: 'kv-label' }, 'MAC check on the opened d: '),
+              dOpen.ok
+                ? chip('neutral', '▸', 'PASSES — you hit the 1/p forgery event')
+                : chip('neutral', '▸', 'Σσᵢ ≠ 0 — ABORT at the d opening'),
+            ),
+            h(
+              'p',
+              { class: 'kv' },
+              h('span', { class: 'kv-label' }, 'Verdict: '),
+              dOpen.ok
+                ? chip('alarm', '✗', 'forgery slipped through — probability ≈ 4.3×10⁻¹⁹ per attempt')
+                : chip('ok', '✓', 'the lie died at the opening — no product was ever computed'),
+            ),
+            h(
+              'p',
+              { class: 'note' },
+              dOpen.ok
+                ? 'This session’s MAC key happens to annihilate your δ — the exactly-1/p event the security bound talks about. Reload the page for a fresh key and it will not happen again in the lifetime of the universe.'
+                : 'd = x − a is itself a shared value with MAC shares, so its opening is authenticated like any other. The multiplication never reaches the combine step.',
+            ),
+          ),
+        ),
+      )
+    }
+
+    breakout.append(
+      h('h3', {}, 'Break it: lie during the d opening'),
+      h(
+        'p',
+        {},
+        'The subtler attack. As P₁, add δ to your broadcast share of x − a, shifting the public d. Everyone then computes z′ = x·y + δ·y — and here is the trap: z′ arrives with a VALID MAC, because the MAC shares follow the same algebra. Compare what happens with and without authenticated openings.',
+      ),
+      h(
+        'div',
+        { class: 'controls' },
+        h('label', { for: 'mul-ddelta' }, 'Your lie δ'),
+        deltaInput,
+        h('button', { type: 'button', class: 'danger-btn', onclick: attack }, 'Lie during the opening'),
       ),
       out,
     )

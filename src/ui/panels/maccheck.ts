@@ -14,7 +14,8 @@
 
 import { mul } from '../../spdz/field'
 import { openSemiHonest, openSpdz } from '../../spdz/protocol'
-import { macKeyOf, shareSecret, tamperShare } from '../../spdz/sharing'
+import { macKeyOf, openValue, shareSecret, tamperShare } from '../../spdz/sharing'
+import { cancellingSigma, macCheckCommitThenOpen, macCheckNoCommit } from '../../spdz/transcript'
 import type { AuthShares } from '../../spdz/types'
 import { alphaShares } from '../state'
 import { chip, clear, fe, h } from '../dom'
@@ -120,7 +121,7 @@ export function renderMacPanel(mount: HTMLElement): void {
           h(
             'p',
             { class: 'note' },
-            `To slip a change of Δ past the check you would need to shift your MAC share by α·Δ — and α is secret-shared, held by nobody. Your only move is guessing α: one chance in p ≈ 2.3×10¹⁸. Be precise about what just happened: SPDZ detected THAT someone cheated and refused to release a wrong answer. It did not compute the right answer despite the cheating, and it did not learn WHO cheated (that stronger property is called identifiable abort — a different protocol, not built here).`,
+            `To slip a change of Δ past the check you would need to shift your MAC share by α·Δ — and α is secret-shared, held by nobody. Your only move is guessing α: one chance in p ≈ 2.3×10¹⁸. That bound assumes one more thing: your check share is fixed BEFORE you see anyone else's (the advanced break-it below shows why that ordering rule is load-bearing). Be precise about what just happened: SPDZ detected THAT someone cheated and refused to release a wrong answer. It did not compute the right answer despite the cheating, and it did not learn WHO cheated (that stronger property is called identifiable abort — a different protocol, not built here).`,
           ),
         ),
       )
@@ -131,7 +132,7 @@ export function renderMacPanel(mount: HTMLElement): void {
         chip('ok', '✓', 'MAC check passed: Σσᵢ = 0'),
         honest
           ? 'No tampering, so the MAC check passes and the correct value is released.'
-          : 'Accepted despite tampering — this should be impossible without knowing α. If you ever see this, the lab has a bug.',
+          : 'Accepted despite tampering — you hit the modeled 1/p forgery event (probability ≈ 4.3×10⁻¹⁹): this session’s α happens to annihilate your Δ. That is the exact strength, and the exact limit, of the information-theoretic MAC.',
       )
     }
 
@@ -161,6 +162,112 @@ export function renderMacPanel(mount: HTMLElement): void {
       h('label', { for: 'mac-delta' }, 'Add this to your value share before the reveal'),
       deltaInput,
       h('button', { type: 'button', class: 'danger-btn', onclick: runBoth }, 'Cheat & open in both protocols'),
+    ),
+    out,
+    renderOrderingExhibit(shares),
+  )
+}
+
+/**
+ * GS-02 exhibit: the MAC check needs message ORDERING, not just algebra.
+ * An adversary who may send its check share last can cancel Σσᵢ for any
+ * forged value — no α guessing. Commit-then-open kills the move.
+ */
+function renderOrderingExhibit(shares: AuthShares): HTMLElement {
+  const out = h('div', { class: 'result-region', role: 'status', 'aria-live': 'polite' })
+
+  const attack = async (): Promise<void> => {
+    clear(out)
+    // Forge the opened value, then attack the CHECK itself as the last sender.
+    const forged = tamperShare(shares, 1, 100n)
+    const opened = openValue(forged)
+
+    const unordered = macCheckNoCommit(opened, forged, alphaShares, {
+      party: 1,
+      chooseSigma: cancellingSigma, // sees the honest σ's, sends their negation
+    })
+    const committed = await macCheckCommitThenOpen(opened, forged, alphaShares, {
+      party: 1,
+      // Same adversary: commits honestly, then — having seen the honest σ's — tries to swap in the cancelling value.
+      revealOverride: (others) => cancellingSigma(others),
+    })
+
+    out.append(
+      h(
+        'div',
+        { class: 'proto-row' },
+        h(
+          'div',
+          { class: 'proto-col' },
+          h('h3', {}, 'Unordered check (σ’s sent in the open)'),
+          h('p', { class: 'kv' }, h('span', { class: 'kv-label' }, 'You waited, saw the honest σ’s, sent: '), fe(unordered.sigmas[1] as bigint)),
+          h(
+            'p',
+            { class: 'kv' },
+            h('span', { class: 'kv-label' }, 'Protocol outcome: '),
+            unordered.ok
+              ? chip('neutral', '▸', `ACCEPTED — forged value ${opened}, Σσᵢ = 0`)
+              : chip('neutral', '▸', 'rejected'),
+          ),
+          h(
+            'p',
+            { class: 'kv' },
+            h('span', { class: 'kv-label' }, 'Verdict: '),
+            unordered.ok
+              ? chip('alarm', '✗', 'forged value accepted — no α guessing, just patience')
+              : chip('ok', '✓', 'rejected'),
+          ),
+          h(
+            'p',
+            { class: 'note' },
+            'The 1/p security bound is simply false for this transcript: the last sender computes the cancelling σ from what everyone else revealed.',
+          ),
+        ),
+        h(
+          'div',
+          { class: 'proto-col' },
+          h('h3', {}, 'SPDZ transcript: commit, then open'),
+          h(
+            'p',
+            { class: 'kv' },
+            h('span', { class: 'kv-label' }, 'Protocol outcome: '),
+            committed.commitmentFailure !== null
+              ? chip('neutral', '▸', 'ABORT — a reveal contradicted its commitment')
+              : committed.ok
+                ? chip('neutral', '▸', 'accepted')
+                : chip('neutral', '▸', 'ABORT — Σσᵢ ≠ 0'),
+          ),
+          h(
+            'p',
+            { class: 'kv' },
+            h('span', { class: 'kv-label' }, 'Verdict: '),
+            committed.ok
+              ? chip('alarm', '✗', 'forgery slipped through — should be the 1/p event only')
+              : chip('ok', '✓', 'the cancellation attempt died — commitments bind before reveals'),
+          ),
+          h(
+            'p',
+            { class: 'note' },
+            'Every party commits to SHA-256(nonce ‖ σᵢ) before any σ is revealed. Your cancelling reveal no longer matches your commitment, and the honest parties abort. The commitments here are real hashes over real nonces; what this single tab models is only the network ordering.',
+          ),
+        ),
+      ),
+    )
+  }
+
+  return h(
+    'details',
+    {},
+    h('summary', {}, 'Advanced break-it: attack the check itself by sending your σ last'),
+    h(
+      'p',
+      { class: 'note' },
+      'The check above sums σᵢ = γ(x)ᵢ − αᵢ·x and demands zero. Algebra alone is not enough: if you may send your σ AFTER seeing everyone else’s, you can send the exact negation of their sum and “pass” with any forged value. Real SPDZ therefore makes every party commit to its σ before any are revealed.',
+    ),
+    h(
+      'div',
+      { class: 'controls' },
+      h('button', { type: 'button', class: 'danger-btn', onclick: () => void attack() }, 'Cheat & send your σ last'),
     ),
     out,
   )

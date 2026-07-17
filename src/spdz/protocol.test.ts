@@ -61,12 +61,26 @@ describe('hospital variance over MPC', () => {
     expect(run.transcripts).toHaveLength(4)
   })
 
-  it('a tampered contribution makes the final open ABORT', () => {
+  it('a tampered contribution makes the final open ABORT (no attribution in the outcome)', () => {
     const triples = Array.from({ length: 4 }, () => dealTriple(alpha))
-    const run = varianceOverMpc(inputs, alpha, triples, undefined, (numShares) =>
-      tamperShare(numShares, 2, 1n),
-    )
+    const run = varianceOverMpc(inputs, alpha, triples, undefined, {
+      finalOpen: (numShares) => tamperShare(numShares, 2, 1n),
+    })
     expect(run.numerator.kind).toBe('abort')
+    if (run.numerator.kind === 'abort') expect(run.numerator.stage).toBe('final')
+    // The protocol outcome carries which CHECK failed, never which PARTY did it.
+    expect(Object.keys(run.numerator)).not.toContain('party')
+  })
+
+  it('a lie during any multiplication OPENING also aborts — same authenticated path, no bypass', () => {
+    for (const mulIndex of [0, 3]) {
+      const triples = Array.from({ length: 4 }, () => dealTriple(alpha))
+      const run = varianceOverMpc(inputs, alpha, triples, undefined, {
+        opening: { mulIndex, at: 'd', party: 1, delta: 5n },
+      })
+      expect(run.numerator.kind).toBe('abort')
+      if (run.numerator.kind === 'abort') expect(run.numerator.stage).toBe('opening')
+    }
   })
 
   it('fails closed on out-of-range inputs and on a short triple supply', () => {

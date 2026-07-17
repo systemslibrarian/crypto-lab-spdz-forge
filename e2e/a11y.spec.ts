@@ -3,18 +3,28 @@ import { expect, test, type Page } from '@playwright/test'
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 
-/**
- * Drive every panel into its post-interaction states before scanning — an
- * unscanned state is an ungated state. This walks: the addition run, all six
- * Beaver steps, both break-it outcomes (fresh, then reuse so the ALARM state
- * is what remains), the MAC-check cheat (abort + alarm columns), the honest
- * MAC-check run, preprocessing, and the variance run in both the lying
- * (abort) and honest (accepted) variants.
- */
-async function driveDemos(page: Page): Promise<void> {
+async function openAllDetails(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    document.querySelectorAll('details').forEach((d) => {
+      d.open = true
+    })
+  })
+}
+
+async function killMotion(page: Page): Promise<void> {
   await page.addStyleTag({
     content: `*,*::before,*::after{animation:none!important;transition:none!important}`,
   })
+}
+
+/**
+ * Phase A drives every ALARM/ABORT state: the reuse leak, the opening-lie
+ * attack, the MAC cheat, the σ-last-sender attack, and the lying-hospital
+ * variance abort. These states are scanned while rendered — an unscanned
+ * state is an ungated state.
+ */
+async function driveAbortStates(page: Page): Promise<void> {
+  await killMotion(page)
 
   // Panel 1 — addition.
   await page.getByRole('button', { name: 'Share & add' }).click()
@@ -28,41 +38,48 @@ async function driveDemos(page: Page): Promise<void> {
   }
   await expect(page.locator('#panel-beaver .wire')).toBeVisible()
 
-  // Break-it: fresh triple first, spent-triple reuse last (ALARM state stays rendered).
-  await page.getByRole('button', { name: 'Use a fresh triple' }).click()
-  await expect(page.locator('#panel-beaver .chip-ok').last()).toBeVisible()
+  // Break-it 1: reuse the spent triple (leak → ALARM).
   await page.getByRole('button', { name: 'Reuse the spent triple' }).click()
-  await expect(page.locator('#panel-beaver .chip-alarm')).toBeVisible()
+  await expect(page.locator('#panel-beaver .chip-alarm').first()).toBeVisible()
 
-  // Panel 3 — MAC check: cheat (delta 100 → semi-honest ALARM, SPDZ abort)…
+  // Break-it 2: lie during the d opening (valid-MAC-wrong-product + abort).
+  await page.getByRole('button', { name: 'Lie during the opening' }).click()
+  await expect(page.getByText('a WRONG product with a perfectly VALID MAC')).toBeVisible()
+
+  // Panel 3 — MAC cheat (delta 100 → semi-honest ALARM, SPDZ abort)…
   await page.getByRole('button', { name: 'Cheat & open in both protocols' }).click()
-  await expect(page.locator('#panel-mac .proto-col')).toHaveCount(2)
-  // …and the honest run (delta 0 → both accept), then cheat again so the
-  // alarm/abort variant is the state that gets scanned.
+  await expect(page.locator('#panel-mac .proto-col').first()).toBeVisible()
+  // …and the σ-last-sender attack inside the advanced disclosure.
+  await openAllDetails(page)
+  await page.getByRole('button', { name: 'Cheat & send your σ last' }).click()
+  await expect(page.getByText('forged value accepted — no α guessing, just patience')).toBeVisible()
+
+  // Panel 4 — preprocessing refill (keeps the bank stocked).
+  await page.getByRole('button', { name: /Run preprocessing \(deal/ }).click()
+
+  // Panel 5 — variance with the lying-hospital scenario (abort state).
+  await page.locator('#var-lie').check()
+  await page.getByRole('button', { name: 'Compute variance over MPC' }).click()
+  await expect(page.getByText('ABORT — no statistic released')).toBeVisible()
+
+  await openAllDetails(page)
+  await page.waitForTimeout(300)
+}
+
+/** Phase B drives the honest/accepted variants that phase A's states replaced. */
+async function driveHonestStates(page: Page): Promise<void> {
   await page.locator('#mac-delta').fill('0')
   await page.getByRole('button', { name: 'Cheat & open in both protocols' }).click()
   await expect(page.locator('#panel-mac .chip-ok').first()).toBeVisible()
-  await page.locator('#mac-delta').fill('100')
-  await page.getByRole('button', { name: 'Cheat & open in both protocols' }).click()
-  await expect(page.locator('#panel-mac .chip-alarm')).toBeVisible()
 
-  // Panel 4 — preprocessing refill (keeps the bank stocked for the variance runs).
-  await page.getByRole('button', { name: /Run preprocessing \(deal/ }).click()
+  await page.getByRole('button', { name: 'Use a fresh triple' }).click()
+  await expect(page.getByText('No leak: a fresh random')).toBeVisible()
 
-  // Panel 5 — variance: lying variant (abort) first, honest (accepted) last.
-  await page.locator('#var-lie').check()
-  await page.getByRole('button', { name: 'Compute variance over MPC' }).click()
-  await expect(page.locator('#panel-var .chip-ok')).toBeVisible()
   await page.locator('#var-lie').uncheck()
   await page.getByRole('button', { name: 'Compute variance over MPC' }).click()
-  await expect(page.locator('#panel-var .chip-ok').first()).toBeVisible()
+  await expect(page.getByText('Population variance:')).toBeVisible()
 
-  // Reveal all progressive-disclosure content.
-  await page.evaluate(() => {
-    document.querySelectorAll('details').forEach((d) => {
-      d.open = true
-    })
-  })
+  await openAllDetails(page)
   await page.waitForTimeout(300)
 }
 
@@ -77,16 +94,16 @@ async function scan(page: Page): Promise<void> {
   ).toEqual([])
 }
 
-test('no WCAG A/AA violations — dark theme', async ({ page }) => {
-  await page.goto('.')
-  await driveDemos(page)
-  await scan(page)
-})
-
-test('no WCAG A/AA violations — light theme', async ({ page }) => {
-  await page.goto('.')
-  await page.locator('#cl-theme-toggle').click()
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
-  await driveDemos(page)
-  await scan(page)
-})
+for (const theme of ['dark', 'light'] as const) {
+  test(`no WCAG A/AA violations — ${theme} theme, abort states and honest states`, async ({ page }) => {
+    await page.goto('.')
+    if (theme === 'light') {
+      await page.locator('#cl-theme-toggle').click()
+      await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+    }
+    await driveAbortStates(page)
+    await scan(page) // scan the alarm/abort variants while they are rendered
+    await driveHonestStates(page)
+    await scan(page) // then the accepted variants that replaced them
+  })
+}

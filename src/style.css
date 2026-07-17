@@ -97,6 +97,14 @@ body {
   padding-left: 0.8rem;
 }
 
+/* Omniscient lab-control annotations — visually and semantically OUTSIDE the
+   protocol transcript (the protocol never attributes; only the lab can). */
+#app .lab-note {
+  border: 1px dashed var(--warn-text);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+}
+
 /* Controls */
 #app .controls {
   display: flex;
