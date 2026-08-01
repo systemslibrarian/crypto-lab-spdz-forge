@@ -129,6 +129,13 @@ body {
   width: 7.5rem;
 }
 
+/* The MAC-share shift takes a full field element (up to 19 digits), so it
+   needs room for the pasted α·Δ value to be readable end to end. */
+#app input#mac-delta-gamma {
+  width: 14rem;
+  max-width: 100%;
+}
+
 #app input[type='checkbox'] {
   width: 1.05rem;
   height: 1.05rem;

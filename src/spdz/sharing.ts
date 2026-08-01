@@ -125,12 +125,28 @@ export function mulPublic(x: AuthShares, k: bigint): AuthShares {
 }
 
 /**
- * Tamper with one party's value share (the malicious act the lab teaches).
- * Returns a new share vector; the MAC share is left untouched — the cheater
- * cannot fix it without knowing α.
+ * Tamper with one party's shares (the malicious act the lab teaches).
+ *
+ * `delta` shifts the value share. `macDelta` shifts the MAC share, and it is
+ * the whole point of the MAC-check panel: the check passes iff the cheater's
+ * MAC shift equals α·delta. Leaving it at 0 is the default cheat and always
+ * fails; setting it to α·delta forges successfully, which is not a hole but
+ * the statement of the guarantee — the check is exactly as strong as α is
+ * secret, and α is additively shared so no party holds it. Anything else
+ * misses, and Σσᵢ lands on α·delta − macDelta rather than 0.
+ *
+ * Exposing macDelta lets the learner execute the attack the UI names instead
+ * of reading about it. It changes nothing for callers that omit it.
  */
-export function tamperShare(shares: AuthShares, party: number, delta: bigint): AuthShares {
+export function tamperShare(
+  shares: AuthShares,
+  party: number,
+  delta: bigint,
+  macDelta: bigint = 0n,
+): AuthShares {
   return shares.map((sh, i) =>
-    i === party ? { value: add(sh.value, delta), mac: sh.mac } : { ...sh },
+    i === party
+      ? { value: add(sh.value, delta), mac: add(sh.mac, macDelta) }
+      : { ...sh },
   )
 }

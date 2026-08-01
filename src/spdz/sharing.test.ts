@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { P, add, mul, randFieldElement } from './field'
+import { P, add, mul, randFieldElement, sub } from './field'
 import {
   addPublic,
   addShares,
@@ -57,14 +57,38 @@ describe('authenticated additive sharing', () => {
   it('a cheater who KNEW α could forge the MAC — the check is exactly as strong as α is secret', () => {
     const shares = shareSecret(50n, alpha)
     const delta = 13n
-    const evil = tamperShare(shares, 2, delta)
-    // Forge: also shift the same party's MAC share by α·delta (requires the full key).
-    const forged = evil.map((sh, i) =>
-      i === 2 ? { value: sh.value, mac: add(sh.mac, mul(macKeyOf(alpha), delta)) } : sh,
-    )
+    // Shift the value share by Δ AND the MAC share by α·Δ. The second half is
+    // what the MAC-check panel now exposes as a control; computing it requires
+    // the full key, which no party holds in a real deployment.
+    const forged = tamperShare(shares, 2, delta, mul(macKeyOf(alpha), delta))
     const opened = openValue(forged)
     expect(opened).toBe(63n)
     expect(macCheck(opened, forged, alpha).ok).toBe(true) // wrong value, valid MAC — only with α
+  })
+
+  it('Σσᵢ is exactly macDelta − α·Δ, so only the exact forgery passes', () => {
+    // The MAC-check panel derives its verdict and its "your shift was off by
+    // this much" readout from this identity. If it ever stopped holding, the
+    // panel would be telling the learner a number that means nothing.
+    const delta = 7n
+    const alphaDelta = mul(macKeyOf(alpha), delta)
+    for (const macDelta of [0n, 1n, alphaDelta - 1n, alphaDelta + 1n, alphaDelta]) {
+      const shares = shareSecret(50n, alpha)
+      const evil = tamperShare(shares, 1, delta, macDelta)
+      const check = macCheck(openValue(evil), evil, alpha)
+      expect(check.sum).toBe(sub(macDelta, alphaDelta))
+      expect(check.ok).toBe(macDelta === alphaDelta)
+    }
+  })
+
+  it('shifting only the MAC share (Δ = 0) also breaks the check', () => {
+    // The other half of the two-control surface: a MAC-only edit leaves the
+    // opened value correct but the authentication inconsistent, so SPDZ still
+    // aborts rather than releasing a value it cannot vouch for.
+    const shares = shareSecret(50n, alpha)
+    const evil = tamperShare(shares, 1, 0n, 999n)
+    expect(openValue(evil)).toBe(50n) // value untouched
+    expect(macCheck(openValue(evil), evil, alpha).ok).toBe(false)
   })
 
   it('addition of shares is local and correct, MACs included', () => {

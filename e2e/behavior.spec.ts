@@ -57,6 +57,32 @@ test('MAC panel: same tampered shares — semi-honest accepts (ALARM), SPDZ abor
   await expect(page.getByText('ABORT — no value released')).toBeVisible()
 })
 
+test('MAC panel: shifting the MAC share by α·Δ forges a valid MAC — Σσᵢ = 0, no abort', async ({ page }) => {
+  // The panel names this attack ("shift your MAC share by α·Δ") and prints α.
+  // This test executes it end to end: the guarantee is that the check is worth
+  // exactly as much as α is secret, and here the dealer hands α over.
+  await page.goto('.')
+  const forging = (await page.locator('#mac-forging-value').textContent())!.trim()
+  expect(forging).toMatch(/^\d+$/)
+  await page.locator('#mac-delta').fill('100')
+  await page.locator('#mac-delta-gamma').fill(forging)
+  await page.getByRole('button', { name: 'Cheat & open in both protocols' }).click()
+  // The forged value is released, and the SPDZ column says so.
+  await expect(page.locator('#panel-mac').getByText('ACCEPTED — opened value 142')).toHaveCount(2)
+  await expect(page.getByText('ALARM — a forged value carried a valid MAC')).toBeVisible()
+  await expect(page.locator('#panel-mac').getByText('ABORT — no value released')).toHaveCount(0)
+})
+
+test('MAC panel: a MAC shift that is NOT α·Δ still aborts — no partial credit', async ({ page }) => {
+  await page.goto('.')
+  const forging = BigInt((await page.locator('#mac-forging-value').textContent())!.trim())
+  await page.locator('#mac-delta').fill('100')
+  await page.locator('#mac-delta-gamma').fill(String(forging - 1n))
+  await page.getByRole('button', { name: 'Cheat & open in both protocols' }).click()
+  await expect(page.locator('#panel-mac').getByText('ABORT — no value released')).toBeVisible()
+  await expect(page.getByText('cheating detected — the system worked')).toBeVisible()
+})
+
 test('GS-03: a variance abort never attributes — no hospital is named in the protocol outcome', async ({ page }) => {
   await page.goto('.')
   await page.locator('#var-lie').check()
