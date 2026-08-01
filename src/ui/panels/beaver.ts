@@ -396,6 +396,13 @@ export function renderBeaverPanel(mount: HTMLElement): void {
       const zOpened = openValue(zEvil)
       const finalCheck = macCheck(zOpened, zEvil, alphaShares)
       const trueProduct = mul(r.x, r.y)
+      // The claim in the verdict below is "a WRONG product with a VALID MAC".
+      // Both halves are checked, not asserted: the product is only wrong if it
+      // actually differs from x·y (with y = 0 the lie is absorbed and z′ IS
+      // correct), and the MAC is only valid if the final check really passes.
+      const predicted = add(trueProduct, mul(delta, r.y))
+      const productWrong = zOpened !== trueProduct
+      const matchesPrediction = zOpened === predicted
 
       out.append(
         h(
@@ -411,25 +418,35 @@ export function renderBeaverPanel(mount: HTMLElement): void {
               { class: 'kv' },
               h('span', { class: 'kv-label' }, 'True product: '),
               fe(trueProduct),
-              ' — z′ = x·y + δ·y = ',
-              fe(add(trueProduct, mul(delta, r.y))),
+              ' — predicted z′ = x·y + δ·y = ',
+              fe(predicted),
+              ' ',
+              matchesPrediction
+                ? chip('ok', '✓', 'the opened z′ matches that prediction exactly')
+                : chip('alarm', '✗', 'opened z′ does NOT match the prediction'),
             ),
             h(
               'p',
               { class: 'kv' },
               h('span', { class: 'kv-label' }, 'Final MAC check on z′: '),
-              finalCheck.ok ? chip('neutral', '▸', 'PASSES — Σσᵢ = 0') : chip('neutral', '▸', 'fails'),
+              finalCheck.ok ? chip('neutral', '▸', 'PASSES — Σσᵢ = 0') : chip('neutral', '▸', `fails — Σσᵢ = ${finalCheck.sum}`),
             ),
             h(
               'p',
               { class: 'kv' },
               h('span', { class: 'kv-label' }, 'Verdict: '),
-              chip('alarm', '✗', 'a WRONG product with a perfectly VALID MAC'),
+              productWrong && finalCheck.ok
+                ? chip('alarm', '✗', 'a WRONG product with a perfectly VALID MAC')
+                : productWrong
+                  ? chip('ok', '✓', 'the wrong product did not carry a valid MAC')
+                  : chip('neutral', '▸', 'the product is still correct — δ·y vanished'),
             ),
             h(
               'p',
               { class: 'note' },
-              'The MAC shares rode the same linear combination as the lie, so they authenticate z′ faithfully. A final check can never repair an unauthenticated opening.',
+              productWrong
+                ? 'The MAC shares rode the same linear combination as the lie, so they authenticate z′ faithfully. A final check can never repair an unauthenticated opening.'
+                : `δ·y = δ·${r.y} is zero in the field, so shifting d moved nothing: z′ still equals x·y. Set y to a non-zero secret and re-run to see the attack bite. (SPDZ aborts either way — the opening check does not care whether the lie happened to be harmless.)`,
             ),
           ),
           h(

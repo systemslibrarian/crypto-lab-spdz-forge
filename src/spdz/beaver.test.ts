@@ -88,6 +88,30 @@ describe('Beaver-triple multiplication', () => {
     expect(macCheck(opened, zEvil, alpha).ok).toBe(true) // …and the final MAC check PASSES on it
   })
 
+  it('the opening lie is ABSORBED when y = 0 — z′ = xy + δ·y is then correct', () => {
+    // The break-it panel used to assert "a WRONG product with a valid MAC"
+    // unconditionally, and y = 0 is reachable from its input. With y = 0 the
+    // δ·y term vanishes: the product is right and only the abort survives.
+    const x = 6n
+    const t = dealTriple(alpha)
+    const xs = shareSecret(x, alpha)
+    const ys = shareSecret(0n, alpha)
+    const dTrue = openValue(subShares(xs, t.a))
+    const eTrue = openValue(subShares(ys, t.b))
+    const zEvil = combineWithOpenings(t, add(dTrue, 9n), eTrue, alpha)
+    expect(openValue(zEvil)).toBe(mul(x, 0n)) // NOT wrong
+    expect(macCheck(openValue(zEvil), zEvil, alpha).ok).toBe(true)
+    // SPDZ does not care that the lie happened to be harmless: it still aborts.
+    const checked = beaverMulChecked(
+      shareSecret(x, alpha),
+      shareSecret(0n, alpha),
+      dealTriple(alpha),
+      alpha,
+      { d: { party: 1, delta: 9n } },
+    )
+    expect(checked.kind).toBe('abort')
+  })
+
   it('honest checked multiplication reports both opening checks as passed', () => {
     const result = beaverMulChecked(
       shareSecret(6n, alpha),

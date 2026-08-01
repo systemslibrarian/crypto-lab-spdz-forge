@@ -56,12 +56,15 @@ export function renderVariancePanel(mount: HTMLElement): void {
       lying ? { finalOpen: (num) => tamperShare(num, 1, 7n) } : undefined,
     )
 
+    // Counted from the run, not asserted: an abort partway through consumes
+    // fewer triples and publishes fewer openings than a completed circuit.
+    const muls = runResult.transcripts.length
     out.append(
       h(
         'p',
         { class: 'kv' },
         h('span', { class: 'kv-label' }, 'Online phase: '),
-        `4 multiplications, 4 triples consumed, and the public wire carried only the 8 masked openings (d, e per multiply) plus the final result. No hospital's count was ever opened.`,
+        `${muls} multiplication${muls === 1 ? '' : 's'} completed, ${runResult.triplesUsed} triple${runResult.triplesUsed === 1 ? '' : 's'} consumed, and the public wire carried only the ${muls * 2} masked openings (d, e per multiply) plus whatever the final open released. No hospital's count was ever opened.`,
       ),
     )
 

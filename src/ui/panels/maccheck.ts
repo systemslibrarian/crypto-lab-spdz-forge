@@ -169,7 +169,11 @@ export function renderMacPanel(mount: HTMLElement): void {
         ),
       )
     } else {
-      const forged = !honest && macDelta === forgingMac && delta !== 0n
+      // Reaching here means Σσᵢ = macDelta − α·Δ was exactly 0, i.e. macDelta
+      // landed on forgingMac. So "accepted and not honest" IS the forgery —
+      // there is no separate chance event to attribute it to. (Δ = 0 forces
+      // forgingMac = 0, which forces macDelta = 0, which is the honest case.)
+      const forged = !honest
       spdzCol = verdictBlock(
         'SPDZ (MAC on)',
         chip('neutral', '▸', `ACCEPTED — opened value ${spdz.value}`),
@@ -193,7 +197,7 @@ export function renderMacPanel(mount: HTMLElement): void {
                   'This is the guarantee stated exactly, not broken: the MAC check is worth precisely as much as α is secret. You could compute α·Δ only because this tab plays the dealer and prints α at the top of the panel. Take that number away — as SPDZ does by sharing α additively across the parties, so nobody ever holds it, and by producing the shares in an offline phase rather than from a dealer — and the same attack costs one guess in p ≈ 2.3×10¹⁸ per opening.',
                 ),
               )
-            : 'Accepted despite tampering — you hit the modeled 1/p forgery event (probability ≈ 4.3×10⁻¹⁹): this session’s α·Δ happens to equal your MAC shift. That is the exact strength, and the exact limit, of the information-theoretic MAC.',
+            : 'Accepted with no value shift — nothing was forged.',
       )
     }
 
