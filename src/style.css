@@ -6,6 +6,9 @@
   --panel: #181b1f;
   --panel-2: #1f232a;
   --border: #3a3f46;
+  /* text-entry control boundary — WCAG 1.4.11 needs >=3:1; this reaches 4.0:1
+     on the --panel-2 fill and 4.4:1 on the surrounding --panel. */
+  --control-border: #7d838d;
   --text: #e9eaec;
   --text-dim: #b6bcc6;
   --accent-text: #f5a524;
@@ -22,6 +25,9 @@
   --panel: #ffffff;
   --panel-2: #f3f1ec;
   --border: #c9c3b8;
+  /* text-entry control boundary — 3.6:1 on the --panel-2 fill, 4.1:1 on the
+     white --panel (was --border #c9c3b8, 1.55:1 / 1.75:1). */
+  --control-border: #847d70;
   --text: #221f1c;
   --text-dim: #5c564e;
   --accent-text: #92400e;
@@ -122,7 +128,7 @@ body {
 #app input[type='text'] {
   background: var(--panel-2);
   color: var(--text);
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: 8px;
   padding: 0.42rem 0.6rem;
   font: inherit;
