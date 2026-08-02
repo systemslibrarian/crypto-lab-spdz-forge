@@ -12,7 +12,10 @@ export default defineConfig({
     colorScheme: 'dark', // scan the real dark default; the toggle reaches light
   },
   webServer: {
-    command: `npm run preview -- --port ${PORT} --strictPort`,
+    // build first: preview only serves what is already in dist/, so a failed
+    // build would leave the last good bundle on disk and the suite would pass
+    // green against source that no longer compiles
+    command: `npm run build && npm run preview -- --port ${PORT} --strictPort`,
     url: `http://localhost:${PORT}/crypto-lab-spdz-forge/`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
