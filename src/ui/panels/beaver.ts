@@ -228,7 +228,26 @@ export function renderBeaverPanel(mount: HTMLElement): void {
     stage.append(
       h('h3', { class: 'step-title' }, title),
       h('div', { class: 'party-row' }, ...cards),
-      wire.length ? h('div', { class: 'wire', 'aria-label': 'Public wire — values every party and any eavesdropper sees' }, h('p', { class: 'wire-label' }, 'PUBLIC WIRE'), ...wire) : '',
+      // `role="group"` is load-bearing here, not decoration. `aria-label` is
+      // PROHIBITED on a role-less element — a bare <div> has the implicit role
+      // `generic`, which forbids naming — so this label was being discarded
+      // silently, and axe files that under `incomplete` rather than
+      // `violations`, which is exactly where a violations-only gate never
+      // looks. Without a role the public-wire box was an unnamed anonymous div:
+      // the one region on this page a reader most needs told apart from the
+      // party cards, because everything inside it is what an eavesdropper sees.
+      wire.length
+        ? h(
+            'div',
+            {
+              class: 'wire',
+              role: 'group',
+              'aria-label': 'Public wire — values every party and any eavesdropper sees',
+            },
+            h('p', { class: 'wire-label' }, 'PUBLIC WIRE'),
+            ...wire,
+          )
+        : '',
       ...notes,
       h(
         'div',

@@ -48,10 +48,19 @@ export function renderMacPanel(mount: HTMLElement): void {
   })
   const out = h('div', { class: 'result-region', role: 'status', 'aria-live': 'polite' })
 
-  const shareTable = (current: AuthShares): HTMLElement =>
+  /**
+   * Both share tables are `role="region"` scrollers, which makes each a
+   * LANDMARK — and two landmarks that share a role must not share an accessible
+   * name, or a landmark list shows two indistinguishable entries. Both of these
+   * used to be labelled "Authenticated shares of the value 42", which is a
+   * `landmark-unique` failure and, worse, a teaching one: the two tables are the
+   * before and the after of the whole exhibit, and they read identically. The
+   * caller now names what its copy actually shows.
+   */
+  const shareTable = (current: AuthShares, label: string): HTMLElement =>
     h(
       'div',
-      { class: 'scroll-x', tabindex: '0', role: 'region', 'aria-label': 'Authenticated shares of the value 42' },
+      { class: 'scroll-x', tabindex: '0', role: 'region', 'aria-label': label },
       h(
         'table',
         { class: 'share-table' },
@@ -203,7 +212,7 @@ export function renderMacPanel(mount: HTMLElement): void {
 
     out.append(
       h('p', {}, honest ? 'Your shares, unchanged, run through both protocols:' : 'Your tampered shares, run through both protocols:'),
-      shareTable(tampered),
+      shareTable(tampered, 'The shares actually run through both protocols, after your edits'),
       h('div', { class: 'proto-row' }, semiCol, spdzCol),
     )
   }
@@ -220,7 +229,7 @@ export function renderMacPanel(mount: HTMLElement): void {
       fe(mul(macKeyOf(alphaShares), SECRET)),
       '.',
     ),
-    shareTable(shares),
+    shareTable(shares, 'Authenticated shares of the value 42, as dealt'),
     h(
       'div',
       { class: 'controls' },
