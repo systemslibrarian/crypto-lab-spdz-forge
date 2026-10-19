@@ -116,3 +116,13 @@ test('empty bank fails closed and preprocessing unblocks it', async ({ page }) =
   await page.getByRole('button', { name: 'Run preprocessing now' }).click()
   await expect(page.getByText('Step 1 · Share the secrets')).toBeVisible()
 })
+
+test('research note is visible and preserves the attack-model limits', async ({ page }) => {
+  await page.goto('.')
+  const note = page.locator('#off-key-research')
+  await expect(note).toBeVisible()
+  await expect(note.locator('a')).toHaveAttribute('href', 'https://eprint.iacr.org/2026/2533')
+  await expect(note).toContainText('preprint')
+  await expect(note).toContainText('same global MAC key')
+  await expect(note).toContainText('does not reproduce Off-Key')
+})

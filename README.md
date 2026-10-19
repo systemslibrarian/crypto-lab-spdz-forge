@@ -41,6 +41,12 @@ Share and add secrets, step through a Beaver multiplication, reuse a triple to c
 
 **What it does NOT prove:** SPDZ **detects that** someone cheated — it does not compute the correct answer despite cheating, and it does not identify **who** cheated (that stronger property, *identifiable abort*, is a different protocol and is not built here). A cheater whose messages are fixed before reveals passes the MAC check with probability exactly 1/p ≈ 4.3×10⁻¹⁹ — overwhelming, not absolute; without that ordering the bound does not hold at all, which the lab demonstrates rather than hides.
 
+### MAC-key consistency — October 19, 2026
+
+[Keller, Navot and Tyagi, *Off-Key: Inconsistent MAC Keys Compromise Privacy in SPDZ-Family MPC*, ePrint 2026/2533](https://eprint.iacr.org/2026/2533) is a **preprint with demonstrated, attack-model-conditional results**. All shares and preprocessing used together must be authenticated under the same global MAC key. The authors report privacy attacks against evaluated implementations that violate this requirement across batches, threads or process runs: depending on the MAC check, a corrupt party can recover a shared secret or test guesses through selective failure. This does not break SPDZ's theoretical guarantees or establish that every current version of those frameworks is vulnerable.
+
+This lab already uses one in-memory key (`src/ui/state.ts`) for inputs and all triple-bank refills. It does **not** reproduce Off-Key, implement distributed preprocessing, or model cross-process key state. The session-state regression test checks authentication and honest multiplication across refills under the original key.
+
 ### Threat-model matrix
 
 | Property | This lab | Full SPDZ-family deployment |
@@ -50,6 +56,7 @@ Share and add secrets, step through a Beaver multiplication, reuse a triple to c
 | Input protocol | Trusted dealer shares inputs | Authenticated input procedure |
 | Triple generation | Trusted dealer | SHE- or OT-based preprocessing with sacrifice checks |
 | Opening authentication | Implemented for every opening, incl. d and e | Required |
+| MAC-key consistency | One in-memory key for inputs and all triple batches | Preserve key-consistency state across all values and preprocessing used together |
 | MAC-check ordering | Commit-then-open (SHA-256); single tab models the network order | Network protocol with commitments |
 | Batched checking | Single-value checks (pedagogical case) | Random linear combination, amortized |
 | Network, scheduling, replay | Not modeled (one browser tab) | Required |
