@@ -46,7 +46,8 @@ export function renderMacPanel(mount: HTMLElement): void {
     inputmode: 'numeric',
     value: '0',
   })
-  const out = h('div', { class: 'result-region', role: 'status', 'aria-live': 'polite' })
+  const out = h('div', { id: 'mac-out', class: 'result-region', role: 'status', 'aria-live': 'polite' })
+  for (const input of [deltaInput, macDeltaInput]) input.addEventListener('input', () => clear(out))
 
   /**
    * Both share tables are `role="region"` scrollers, which makes each a
@@ -261,7 +262,7 @@ export function renderMacPanel(mount: HTMLElement): void {
  * forged value — no α guessing. Commit-then-open kills the move.
  */
 function renderOrderingExhibit(shares: AuthShares): HTMLElement {
-  const out = h('div', { class: 'result-region', role: 'status', 'aria-live': 'polite' })
+  const out = h('div', { id: 'mac-ordering-out', class: 'result-region', role: 'status', 'aria-live': 'polite' })
 
   const attack = async (): Promise<void> => {
     clear(out)

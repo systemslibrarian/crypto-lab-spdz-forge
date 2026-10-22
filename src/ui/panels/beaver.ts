@@ -51,9 +51,16 @@ export function renderBeaverPanel(mount: HTMLElement): void {
   const xInput = h('input', { id: 'mul-x', type: 'text', inputmode: 'numeric', value: '6' })
   const yInput = h('input', { id: 'mul-y', type: 'text', inputmode: 'numeric', value: '7' })
   const bankChip = h('span', { class: 'bank-chip' })
-  const stage = h('div', { class: 'result-region', role: 'status', 'aria-live': 'polite' })
-  const breakout = h('div', {})
+  const stage = h('div', { id: 'mul-stage', class: 'result-region', role: 'status', 'aria-live': 'polite' })
+  const breakout = h('div', { id: 'mul-breakout' })
   let run: Run | null = null
+
+  const retireRun = (): void => {
+    run = null
+    clear(stage)
+    clear(breakout)
+  }
+  for (const input of [xInput, yInput]) input.addEventListener('input', retireRun)
 
   const refreshBank = (): void => {
     const { available } = bankStats()
@@ -260,6 +267,7 @@ export function renderBeaverPanel(mount: HTMLElement): void {
   }
 
   const start = (): void => {
+    run = null
     clear(breakout)
     const x = readSmallInt(xInput)
     const y = readSmallInt(yInput)
@@ -310,7 +318,8 @@ export function renderBeaverPanel(mount: HTMLElement): void {
     if (!run) return
     const r = run
     const x2Input = h('input', { id: 'mul-x2', type: 'text', inputmode: 'numeric', value: '4' })
-    const out = h('div', { class: 'result-region', role: 'status', 'aria-live': 'polite' })
+    const out = h('div', { id: 'mul-reuse-out', class: 'result-region', role: 'status', 'aria-live': 'polite' })
+    x2Input.addEventListener('input', () => clear(out))
 
     const attack = (reuse: boolean): void => {
       clear(out)
@@ -380,7 +389,8 @@ export function renderBeaverPanel(mount: HTMLElement): void {
     if (!run) return
     const r = run
     const deltaInput = h('input', { id: 'mul-ddelta', type: 'text', inputmode: 'numeric', value: '9' })
-    const out = h('div', { class: 'result-region', role: 'status', 'aria-live': 'polite' })
+    const out = h('div', { id: 'mul-opening-out', class: 'result-region', role: 'status', 'aria-live': 'polite' })
+    deltaInput.addEventListener('input', () => clear(out))
 
     const attack = (): void => {
       clear(out)

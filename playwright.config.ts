@@ -9,7 +9,7 @@ export default defineConfig({
   reporter: 'list',
   use: {
     baseURL: `http://localhost:${PORT}/crypto-lab-spdz-forge/`,
-    colorScheme: 'dark', // scan the real dark default; the toggle reaches light
+    colorScheme: 'dark', // the site intentionally ships a dark-only theme
   },
   webServer: {
     // build first: preview only serves what is already in dist/, so a failed

@@ -126,3 +126,49 @@ test('research note is visible and preserves the attack-model limits', async ({ 
   await expect(note).toContainText('same global MAC key')
   await expect(note).toContainText('does not reproduce Off-Key')
 })
+
+test('editable panel controls retire results produced for earlier inputs', async ({ page }) => {
+  await page.goto('.')
+
+  await page.getByRole('button', { name: 'Share & add' }).click()
+  await expect(page.locator('#add-out')).not.toBeEmpty()
+  await page.locator('#add-x').fill('13')
+  await expect(page.locator('#add-out')).toBeEmpty()
+
+  await page.getByRole('button', { name: 'Start multiplication' }).click()
+  await expect(page.locator('#mul-stage')).toContainText('Step 1')
+  await page.locator('#mul-y').fill('8')
+  await expect(page.locator('#mul-stage')).toBeEmpty()
+  await expect(page.locator('#mul-breakout')).toBeEmpty()
+
+  await page.getByRole('button', { name: 'Cheat & open in both protocols' }).click()
+  await expect(page.locator('#mac-out')).not.toBeEmpty()
+  await page.locator('#mac-delta-gamma').fill('1')
+  await expect(page.locator('#mac-out')).toBeEmpty()
+
+  await page.getByRole('button', { name: 'Compute variance over MPC' }).click()
+  await expect(page.locator('#var-out')).not.toBeEmpty()
+  await page.locator('#var-lie').check()
+  await expect(page.locator('#var-out')).toBeEmpty()
+})
+
+test('nested Beaver attack controls retire their earlier evidence', async ({ page }) => {
+  await page.goto('.')
+  await page.getByRole('button', { name: 'Start multiplication' }).click()
+  const next = page.getByRole('button', { name: 'Next step →' })
+  for (let i = 0; i < 5; i++) await next.click()
+
+  await page.getByRole('button', { name: 'Reuse the spent triple' }).click()
+  await expect(page.locator('#mul-reuse-out')).toContainText('LEAK')
+  await page.locator('#mul-x2').fill('5')
+  await expect(page.locator('#mul-reuse-out')).toBeEmpty()
+
+  await page.getByRole('button', { name: 'Lie during the opening' }).click()
+  await expect(page.locator('#mul-opening-out')).not.toBeEmpty()
+  await page.locator('#mul-ddelta').fill('10')
+  await expect(page.locator('#mul-opening-out')).toBeEmpty()
+
+  await page.locator('#mul-x').fill('9')
+  await expect(page.locator('#mul-stage')).toBeEmpty()
+  await expect(page.locator('#mul-breakout')).toBeEmpty()
+})

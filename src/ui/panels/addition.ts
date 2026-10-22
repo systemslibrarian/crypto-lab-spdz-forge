@@ -19,7 +19,9 @@ function readSmallInt(input: HTMLInputElement): bigint | null {
 export function renderAdditionPanel(mount: HTMLElement): void {
   const xInput = h('input', { id: 'add-x', type: 'text', inputmode: 'numeric', value: '12' })
   const yInput = h('input', { id: 'add-y', type: 'text', inputmode: 'numeric', value: '30' })
-  const out = h('div', { class: 'result-region', role: 'status', 'aria-live': 'polite' })
+  const out = h('div', { id: 'add-out', class: 'result-region', role: 'status', 'aria-live': 'polite' })
+
+  for (const input of [xInput, yInput]) input.addEventListener('input', () => clear(out))
 
   const run = (): void => {
     clear(out)
