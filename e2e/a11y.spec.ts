@@ -25,10 +25,10 @@ import {
  * the triple bank to zero — both fail-closed states with their inline recovery
  * buttons, which no default-state gate ever reaches.
  *
- * Four configurations: {dark, light} × {1280, 380}. The spec this replaces ran
- * two, both at Playwright's default 1280 viewport, so the `@media (max-width:
- * 640px)` block that collapses `.party-row` and `.proto-row` to one column had
- * never been rendered by any test in this repo.
+ * Two configurations: the lab's dark-only theme at {1280, 380}. The spec this
+ * replaces ran at Playwright's default 1280 viewport, so the `@media
+ * (max-width: 640px)` block that collapses `.party-row` and `.proto-row` to one
+ * column had never been rendered by any test in this repo.
  *
  * See `gate.ts` for what the old spec did — it injected motion suppression
  * instead of exercising the lab's own reduced-motion block, opened every
