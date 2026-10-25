@@ -2,6 +2,7 @@ import './style.css'
 import { renderAdditionPanel } from './ui/panels/addition'
 import { renderBeaverPanel } from './ui/panels/beaver'
 import { renderMacPanel } from './ui/panels/maccheck'
+import { renderOffKeyPanel } from './ui/panels/offkey'
 import { renderPreprocessingPanel } from './ui/panels/preprocessing'
 import { renderVariancePanel } from './ui/panels/variance'
 
@@ -14,5 +15,6 @@ function mount(id: string, render: (el: HTMLElement) => void): void {
 mount('panel-add', renderAdditionPanel)
 mount('panel-beaver', renderBeaverPanel)
 mount('panel-mac', renderMacPanel)
+mount('panel-offkey', renderOffKeyPanel)
 mount('panel-pre', renderPreprocessingPanel)
 mount('panel-var', renderVariancePanel)

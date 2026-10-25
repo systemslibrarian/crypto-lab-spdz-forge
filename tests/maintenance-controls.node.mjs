@@ -53,3 +53,9 @@ test('the production build runs this maintenance gate', () => {
   assert.equal(packageJson.scripts['test:maintenance'], 'node --test tests/maintenance-controls.node.mjs')
   assert.match(packageJson.scripts.build, /npm run test:maintenance/)
 })
+
+test('both hosted validation paths run the focused Off-Key mutation gate', () => {
+  assert.equal(packageJson.scripts['test:mutations'], 'node scripts/mutations.mjs')
+  assert.match(job(ci, 'validate'), /npm run test:mutations/)
+  assert.match(job(deploy, 'build'), /npm run test:mutations/)
+})

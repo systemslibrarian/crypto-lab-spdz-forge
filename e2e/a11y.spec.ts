@@ -12,15 +12,16 @@ import {
  * WCAG A/AA regression gate for SPDZ Forge.
  *
  * The lab is driven along everything it teaches, and EVERY state is scanned
- * while it is on screen: the arrival page, where three of the five panels ship
+ * while it is on screen: the arrival page, where four of the six panels ship
  * with an empty output region and two have already rendered; the skip link
- * focused; each of the six input validators' rejection branches; the addition
+ * focused; each of the seven input validators' rejection branches; the addition
  * panel and its MAC-share disclosure; all six Beaver steps individually,
  * including a step BACKWARDS and both endpoint `disabled` states; both break-its
  * in both outcomes (spent triple leaking x − x′, fresh triple masking it; a lied
  * d opening producing a valid MAC on a wrong product beside SPDZ aborting); all
  * three MAC-panel forks (abort, forged-and-accepted at exactly α·Δ, honest); the
- * σ-last-sender ordering exhibit; the offline phase dealing a batch; the
+ * σ-last-sender ordering exhibit; the Off-Key matching, rejected and omniscient
+ * states; the offline phase dealing a batch; the
  * variance application released and aborted; and — built on purpose by draining
  * the triple bank to zero — both fail-closed states with their inline recovery
  * buttons, which no default-state gate ever reaches.

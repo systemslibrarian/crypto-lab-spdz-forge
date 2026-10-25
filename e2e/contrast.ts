@@ -418,7 +418,7 @@ export async function auditContrast(page: Page, within = 'body *'): Promise<Cont
     /**
      * Style and geometry are memoised per element for one pass.
      *
-     * A driven pass here walks five panels, and the expensive part is that every
+     * A driven pass here walks six panels, and the expensive part is that every
      * value this lab shows is a full-precision field element in its own
      * `<code class="fe">` — three parties x up to six rows of them in the Beaver
      * stepper, plus three- and four-column share tables in two other panels — so
