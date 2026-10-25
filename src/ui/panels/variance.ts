@@ -21,7 +21,8 @@ export function renderVariancePanel(mount: HTMLElement): void {
     h('input', { id: 'var-2', type: 'text', inputmode: 'numeric', value: '160' }),
   ]
   const lieBox = h('input', { id: 'var-lie', type: 'checkbox' })
-  const out = h('div', { class: 'result-region', role: 'status', 'aria-live': 'polite' })
+  const out = h('div', { id: 'var-out', class: 'result-region', role: 'status', 'aria-live': 'polite' })
+  for (const input of [...inputs, lieBox]) input.addEventListener('input', () => clear(out))
 
   const run = (): void => {
     clear(out)

@@ -90,7 +90,7 @@ npm ci
 npm run dev        # Vite dev server
 npm test           # Vitest unit tests + KATs
 npm run build      # typecheck + production build
-npm run test:a11y  # axe-core WCAG 2.1 AA gate, both themes (preview on port 4352)
+npm run test:a11y  # behavior + dark-theme WCAG 2.1 AA gate at desktop/380px (port 4352)
 ```
 
 ## Related Demos
@@ -102,10 +102,10 @@ npm run test:a11y  # axe-core WCAG 2.1 AA gate, both themes (preview on port 435
 
 ## Build & Verify
 
-- **58 Vitest unit tests** across 6 files (`src/spdz/*.test.ts`), covering field arithmetic, share/open round trips, MAC accept/reject for every party and delta, the exact identity the MAC panel reports (Σσᵢ = macΔ − α·Δ, so only the precise forgery passes and a MAC-only edit still aborts), Beaver correctness on typical/boundary/randomized operands, single-use enforcement, the triple-reuse leak, the semi-honest vulnerable path *exhibiting* the flaw, the y = 0 case where the opening lie is absorbed and the product stays correct (SPDZ aborts anyway), and the variance circuit incl. fail-closed edge cases — plus the adversarial message boundaries: tampered d and e openings abort; a regression test proves a final-only check would miss the opening attack (z′ = xy + δy verifies); the σ-last-sender cancellation succeeds against the unordered check and fails against commit-then-open; equivocation after commitment is caught; commitments are binding on value and nonce.
+- **65 Vitest unit tests** across 7 files (`src/**/*.test.ts`), covering field arithmetic, share/open round trips, MAC accept/reject for every party and delta, the exact identity the MAC panel reports (Σσᵢ = macΔ − α·Δ, so only the precise forgery passes and a MAC-only edit still aborts), Beaver correctness on typical/boundary/randomized operands, single-use enforcement, the triple-reuse leak, the semi-honest vulnerable path *exhibiting* the flaw, the y = 0 case where the opening lie is absorbed and the product stays correct (SPDZ aborts anyway), the session-key consistency control, and the variance circuit incl. fail-closed edge cases — plus the adversarial message boundaries: tampered d and e openings abort; a regression test proves a final-only check would miss the opening attack (z′ = xy + δy verifies); the σ-last-sender cancellation succeeds against the unordered check and fails against commit-then-open; equivocation after commitment is caught; commitments are binding on value and nonce.
 - **16 known-answer assertions** in `src/spdz/kats.test.ts`. SPDZ is a paper, not an RFC — it publishes no test vectors — so the KATs are (a) closed-form Mersenne-61 field identities derived independently on paper, and (b) fixed-randomness protocol vectors with every share, MAC, and transcript value hand-computed from the SPDZ equations and pinned as literals.
-- **10 functional browser tests** (`e2e/behavior.spec.ts`) assert the real arithmetic, abort semantics, the no-attribution rule for aborts, triple-bank accounting, and fail-closed behavior against the production build.
-- **Accessibility gate:** `@axe-core/playwright` scans the production build in **both themes**, scanning the ALARM/ABORT variants *while they are rendered* and then the accepted variants that replace them; zero WCAG 2.1 A/AA violations required. Pull requests run the same gate (`ci.yml`); the GitHub Pages deploy is blocked if unit tests, the typechecked build, or the browser gate fail.
+- **13 functional browser tests** (`e2e/behavior.spec.ts`) assert the real arithmetic, abort semantics, the no-attribution rule for aborts, triple-bank accounting, fail-closed behavior, and evidence retirement after editable controls change against the production build.
+- **Accessibility gate:** `@axe-core/playwright` scans the dark-only production build at desktop and 380px widths, scanning the ALARM/ABORT variants *while they are rendered* and then the accepted variants that replace them; zero WCAG 2.1 A/AA violations required. Pull requests run the same gate (`ci.yml`); the GitHub Pages deploy is blocked if unit tests, the typechecked build, or the browser gate fail.
 
 ---
 
