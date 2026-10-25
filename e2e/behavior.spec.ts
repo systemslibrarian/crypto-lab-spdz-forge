@@ -124,7 +124,51 @@ test('research note is visible and preserves the attack-model limits', async ({ 
   await expect(note.locator('a')).toHaveAttribute('href', 'https://eprint.iacr.org/2026/2533')
   await expect(note).toContainText('preprint')
   await expect(note).toContainText('same global MAC key')
-  await expect(note).toContainText('does not reproduce Off-Key')
+  await expect(note).toContainText('bounded three-party trusted-dealer model')
+  await expect(note).toContainText('does not reproduce the evaluated frameworks')
+})
+
+test('PR-05: a matching guess passes the masked Off-Key check and both attacker deductions recover y', async ({ page }) => {
+  await page.goto('.')
+  await page.locator('#offkey-secret').fill('1')
+  await page.locator('#offkey-guess').fill('1')
+  await page.getByRole('button', { name: 'Run the context comparison' }).click()
+
+  const attack = page.locator('[data-context="off-key"]')
+  await expect(attack.getByText('ACCEPTED — masked check value is zero')).toBeVisible()
+  await expect(attack.getByText('recovers y = 1')).toBeVisible()
+  await expect(attack.getByText('outcome reveals y = 1')).toBeVisible()
+  await expect(page.locator('[data-view="attacker"]')).toContainText('contains no y, mask, global key, or honest-party share')
+  await expect(page.locator('[data-view="attacker"]')).toContainText('alternative MAC-check protocols')
+  await expect(page.locator('#panel-offkey')).toContainText('μ = 0 creates a 1/p false-zero exception')
+})
+
+test('PR-05: a wrong bit guess aborts and the observable outcome identifies the other bit', async ({ page }) => {
+  await page.goto('.')
+  await page.locator('#offkey-secret').fill('1')
+  await page.locator('#offkey-guess').fill('0')
+  await page.getByRole('button', { name: 'Run the context comparison' }).click()
+
+  const attack = page.locator('[data-context="off-key"]')
+  await expect(attack.getByText('ABORT — masked check value is non-zero')).toBeVisible()
+  await expect(attack.getByText('outcome reveals y = 1')).toBeVisible()
+  await expect(attack).toContainText('For a general field value, one abort would only rule out this guess')
+})
+
+test('PR-05: same-context repair and ordinary-corruption control stay distinct from privacy leakage', async ({ page }) => {
+  await page.goto('.')
+  await page.getByRole('button', { name: 'Run the context comparison' }).click()
+
+  const same = page.locator('[data-context="same"]')
+  await expect(same.getByText('ACCEPTED — residual 0')).toBeVisible()
+  await expect(same).toContainText('Δ·(g − d)')
+  await expect(same).toContainText('not equality to hidden y')
+  await expect(page.locator('[data-view="correctness-control"]')).toContainText('wrong computation detected')
+
+  await page.getByText('Omniscient teaching audit: reveal hidden state and verify both formulas').click()
+  await expect(page.locator('[data-formula="same"]')).toContainText('independently matched')
+  await expect(page.locator('[data-formula="off-key"]')).toContainText('independently matched')
+  await expect(page.locator('.offkey-audit')).toContainText('Different αᵢ values across parties are legitimate')
 })
 
 test('editable panel controls retire results produced for earlier inputs', async ({ page }) => {
@@ -145,6 +189,11 @@ test('editable panel controls retire results produced for earlier inputs', async
   await expect(page.locator('#mac-out')).not.toBeEmpty()
   await page.locator('#mac-delta-gamma').fill('1')
   await expect(page.locator('#mac-out')).toBeEmpty()
+
+  await page.getByRole('button', { name: 'Run the context comparison' }).click()
+  await expect(page.locator('#offkey-out')).not.toBeEmpty()
+  await page.locator('#offkey-guess').fill('0')
+  await expect(page.locator('#offkey-out')).toBeEmpty()
 
   await page.getByRole('button', { name: 'Compute variance over MPC' }).click()
   await expect(page.locator('#var-out')).not.toBeEmpty()

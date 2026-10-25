@@ -217,7 +217,7 @@ export async function bankCount(page: Page): Promise<number> {
  * theme silently stops persisting, and this boot fails on `data-theme` rather
  * than quietly scanning dark twice.
  *
- * The defaults are asserted at length because this lab's five panels ship in
+ * The defaults are asserted at length because this lab's six panels ship in
  * three different conditions and the old spec assumed all of them. Two panels
  * (MAC, preprocessing) RENDER CONTENT ON MOUNT — the authenticated share table
  * with α printed in the clear, and the triple-bank gauge at 8/8. Three
@@ -252,14 +252,14 @@ export async function boot(page: Page, theme: 'dark' | 'light'): Promise<void> {
 
   // Every panel is mounted by `src/main.ts` into an empty `<div>`; a navigation
   // that resolves proves nothing about whether the module ran.
-  for (const id of ['panel-add', 'panel-beaver', 'panel-mac', 'panel-pre', 'panel-var']) {
+  for (const id of ['panel-add', 'panel-beaver', 'panel-mac', 'panel-offkey', 'panel-pre', 'panel-var']) {
     await expect(page.locator(`#${id}`)).not.toBeEmpty();
   }
 
-  // ── The three panels that ship with nothing generated ────────────────────
+  // ── The four panels that ship with nothing generated ─────────────────────
   // `.result-region:empty { display: none }` takes them out of the flow, so
   // "hidden" here is the real arrival rendering, not a guess.
-  for (const sel of ['#panel-add .result-region', '#panel-beaver .result-region', '#panel-var .result-region']) {
+  for (const sel of ['#panel-add .result-region', '#panel-beaver .result-region', '#panel-offkey .result-region', '#panel-var .result-region']) {
     await expect(page.locator(sel).first()).toBeHidden();
   }
 
@@ -280,6 +280,8 @@ export async function boot(page: Page, theme: 'dark' | 'light'): Promise<void> {
   await expect(page.locator('#mul-y')).toHaveValue('7');
   await expect(page.locator('#mac-delta')).toHaveValue('100');
   await expect(page.locator('#mac-delta-gamma')).toHaveValue('0');
+  await expect(page.locator('#offkey-secret')).toHaveValue('1');
+  await expect(page.locator('#offkey-guess')).toHaveValue('1');
   await expect(page.locator('#var-0')).toHaveValue('120');
   await expect(page.locator('#var-1')).toHaveValue('95');
   await expect(page.locator('#var-2')).toHaveValue('160');
@@ -874,10 +876,10 @@ async function openDetails(page: Page, summaryText: string | RegExp): Promise<vo
 /**
  * Open every VISIBLE shut disclosure by clicking its summary.
  *
- * `:visible` is load-bearing: two of this page's disclosures do not exist until
+ * `:visible` is load-bearing: three of this page's disclosures do not exist until
  * a panel has produced output — the addition panel's "Inspect the MAC shares
- * too" and the Beaver stepper's "Inspect the MAC shares that rode along", which
- * is only built at step 6. The spec this replaces reached all of them at once by
+ * too", the Beaver stepper's "Inspect the MAC shares that rode along" at step
+ * 6, and the Off-Key omniscient audit. The spec this replaces reached them at once by
  * setting `.open = true` from script, which is not a route any reader has and
  * which opens disclosures inside output regions that have nothing in them.
  */
@@ -899,17 +901,17 @@ async function openAllDisclosures(page: Page, expectSome = true): Promise<void> 
  *
  * Six things shape this drive:
  *
- *  - THE ARRIVAL STATE IS SCANNED FIRST, AND IT IS HALF-EMPTY. Three of the five
+ *  - THE ARRIVAL STATE IS SCANNED FIRST, AND IT IS HALF-EMPTY. Four of the six
  *    panels ship with an empty `.result-region` that `.result-region:empty`
- *    removes from the flow; two render on mount. That mixed rendering is the
+ *    removes from the flow; two render results on mount. That mixed rendering is the
  *    first thing every reader sees and the old spec never scanned it — it went
  *    straight to clicking.
  *
- *  - EVERY ERROR STATE IS DRIVEN. Each of the five input validators has a
+ *  - EVERY ERROR STATE IS DRIVEN. Each input validator has a
  *    rejection branch that renders a `.chip-warn`, and `--warn-text` as PROSE
  *    ink appears nowhere else on this page except `.edited-tag` and `.lab-note`.
- *    Every one of the six is driven: three bad numeric fields, a bad second
- *    secret, a zero δ, and an over-long MAC shift.
+ *    Every one of the seven is driven: three bad numeric fields, a bad second
+ *    secret, a zero δ, an over-long MAC shift, and an out-of-model Off-Key bit.
  *
  *  - EVERY BEAVER STEP IS SCANNED WHILE IT IS ON SCREEN. The stepper renders one
  *    step at a time into the same node, so step 3 ceases to exist the instant
@@ -940,7 +942,7 @@ async function openAllDisclosures(page: Page, expectSome = true): Promise<void> 
 export async function driveAllStates(page: Page, theme: string): Promise<void> {
   const scanAt = (s: string): Promise<void> => scan(page, `${theme} / ${s}`);
 
-  await scanAt('first paint: three output regions empty, the bank full at 8');
+  await scanAt('first paint: four output regions empty, the bank full at 8');
 
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur?.());
   await page.keyboard.press('Tab');
@@ -1094,7 +1096,35 @@ export async function driveAllStates(page: Page, theme: string): Promise<void> {
   await expect(page.getByText('the cancellation attempt died — commitments bind before reveals')).toBeVisible();
   await scanAt('σ sent last: it passes unordered and dies against commit-then-open');
 
-  // ── Panel 4: preprocessing ───────────────────────────────────────────────
+  // ── Research extension: inconsistent MAC-key contexts ───────────────────
+  await page.fill('#offkey-secret', '2');
+  await page.getByRole('button', { name: 'Run the context comparison' }).click();
+  await expect(page.locator('#panel-offkey .chip-warn')).toContainText('requires one bit');
+  await scanAt('Off-Key fixture rejected an out-of-model secret');
+
+  await page.fill('#offkey-secret', '1');
+  await page.fill('#offkey-guess', '1');
+  await page.getByRole('button', { name: 'Run the context comparison' }).click();
+  await expect(page.locator('[data-context="off-key"]').getByText('ACCEPTED — masked check value is zero')).toBeVisible();
+  await expect(page.locator('[data-context="off-key"]').getByText('outcome reveals y = 1')).toBeVisible();
+  await expect(page.locator('[data-context="same"]').getByText('ACCEPTED — residual 0')).toBeVisible();
+  await scanAt('Off-Key matching guess: masked acceptance leaks the hidden bit');
+
+  await openDetails(page, 'Omniscient teaching audit: reveal hidden state');
+  await expect(page.locator('[data-formula="same"]')).toContainText('independently matched');
+  await expect(page.locator('[data-formula="off-key"]')).toContainText('independently matched');
+  await expect(page.locator('.offkey-audit table.share-table tbody tr')).toHaveCount(3);
+  await scanAt('Off-Key omniscient audit disclosed: context shares and both formulas verified');
+
+  await page.fill('#offkey-guess', '0');
+  await expect(page.locator('#offkey-out')).toBeEmpty();
+  await page.getByRole('button', { name: 'Run the context comparison' }).click();
+  await expect(page.locator('[data-context="off-key"]').getByText('ABORT — masked check value is non-zero')).toBeVisible();
+  await expect(page.locator('[data-context="off-key"]').getByText('outcome reveals y = 1')).toBeVisible();
+  await expect(page.locator('[data-view="correctness-control"]')).toContainText('wrong computation detected');
+  await scanAt('Off-Key wrong guess: selective abort reveals the other bit, correctness control separate');
+
+  // ── Offline preprocessing panel ──────────────────────────────────────────
   // The gauge is at 5/8 here, so its track is visible BESIDE its fill — which
   // is the only state in which the track boundary's contrast is answerable.
   await expect(page.locator('#panel-pre .meter')).toHaveAttribute('aria-valuenow', '5');
@@ -1106,7 +1136,7 @@ export async function driveAllStates(page: Page, theme: string): Promise<void> {
   expect(await bankCount(page), 'preprocessing deals a batch of 8 into the bank').toBe(13);
   await scanAt('offline phase run: eight more triples banked');
 
-  // ── Panel 5: the variance application ────────────────────────────────────
+  // ── Variance application ─────────────────────────────────────────────────
   await page.fill('#var-1', '9999999');
   await page.getByRole('button', { name: 'Compute variance over MPC' }).click();
   await expect(page.locator('#panel-var .chip-warn')).toContainText('at most 6 digits');

@@ -14,7 +14,7 @@
  * that ratio is NOT trustworthy — hand-measure before acting on it.
  *
  * What the live oracle finds on this lab, over {dark, light} × {1280, 380} and
- * every one of the ~37 states the drive builds, is exactly the two entries
+ * every one of the ~41 states the drive builds, is exactly the two entries
  * below — both in the SHARED Crypto Lab top bar, and neither one this repo's to
  * fix.
  *

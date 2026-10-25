@@ -373,7 +373,7 @@ export async function auditNonText(page: Page, within = 'body *'): Promise<NonTe
     /**
      * Style and geometry are memoised per element for one pass.
      *
-     * A driven pass here walks five panels of full-precision field elements,
+     * A driven pass here walks six panels of full-precision field elements,
      * each in its own `<code class="fe">`, so a single state is hundreds of
      * sibling elements all re-walking the same ancestors up to `<body>`.
      * Without the caches the pass re-reads the same computed styles and rects

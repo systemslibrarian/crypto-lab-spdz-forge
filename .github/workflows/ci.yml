@@ -18,6 +18,8 @@ jobs:
       - run: npm ci
       - name: Unit tests (Vitest, incl. KATs and adversarial paths)
         run: npm test
+      - name: Focused Off-Key mutation gate
+        run: npm run test:mutations
       - name: Build (typecheck gates the build)
         run: npm run build
       - name: Install Playwright browser

@@ -126,6 +126,14 @@ body {
   padding: 0.5rem 0.75rem;
 }
 
+/* The attacker transcript and omniscient audit are different information
+   boundaries. Their headings carry the distinction in text; this edge makes
+   the boundary easy to track visually without making color the only cue. */
+#app .offkey-view {
+  border-left: 3px solid var(--control-border);
+  padding-left: 0.8rem;
+}
+
 /* Controls */
 #app .controls {
   display: flex;

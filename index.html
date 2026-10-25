@@ -243,6 +243,20 @@
         <div id="panel-mac"></div>
       </section>
 
+      <section class="panel" aria-labelledby="offkey-h">
+        <span class="panel-kicker">RESEARCH EXTENSION · KEY CONSISTENCY</span>
+        <h2 id="offkey-h">When abort becomes a privacy oracle</h2>
+        <p>
+          A valid SPDZ session uses one reconstructed global MAC key even though every party holds
+          a different additive share of it. Off-Key asks what happens when an implementation mixes
+          an input authenticated under one reconstructed key with preprocessing authenticated under
+          another. Run the same attacker request against a key-bound context and a deliberately
+          shifted context; the displayed residuals, accept/abort decisions, and deductions all come
+          from the authenticated-share arithmetic.
+        </p>
+        <div id="panel-offkey"></div>
+      </section>
+
       <section class="panel" aria-labelledby="pre-h">
         <span class="panel-kicker">STEP 4 · THE ARCHITECTURE</span>
         <h2 id="pre-h">Offline vs online: why SPDZ is deployable</h2>
@@ -265,8 +279,12 @@
             violate this requirement across batches, threads or process runs. Depending on the check,
             a corrupt party can recover a shared secret or test guesses through selective failure.
             This is an implementation condition, not a break of SPDZ's theoretical guarantees.</p>
-          <p>This demo uses one in-memory MAC key for inputs and every triple-bank refill. It does
-            not reproduce Off-Key or model distributed preprocessing or cross-process key state.</p>
+          <p>This demo's main SPDZ path uses one in-memory MAC key for inputs and every triple-bank
+            refill. The research extension above deliberately constructs a separate β = α + Δ
+            context in a bounded three-party trusted-dealer model, so the paper's residuals and
+            attacker-visible outcomes can be checked. It does not reproduce the evaluated
+            frameworks, distributed preprocessing, cross-process state, or their implementation
+            vulnerabilities.</p>
         </div>
 
         <details>
@@ -312,7 +330,7 @@
                 <tr><th scope="row">Input protocol</th><td>Trusted dealer shares inputs</td><td>Authenticated input procedure</td></tr>
                 <tr><th scope="row">Triple generation</th><td>Trusted dealer</td><td>SHE- or OT-based preprocessing with sacrifice checks</td></tr>
                 <tr><th scope="row">Opening authentication</th><td>Implemented for every opening, incl. d and e</td><td>Required</td></tr>
-                <tr><th scope="row">MAC-key consistency</th><td>One in-memory key for inputs and all triple batches</td><td>Preserve key-consistency state across all values and preprocessing used together</td></tr>
+                <tr><th scope="row">MAC-key consistency</th><td>Main path: one in-memory key. Research extension: an isolated, deliberately inconsistent α/β fixture with a same-context control</td><td>Preserve key-binding state across all values and preprocessing used together</td></tr>
                 <tr><th scope="row">MAC-check ordering</th><td>Commit-then-open (SHA-256), single tab models the network order</td><td>Network protocol with commitments</td></tr>
                 <tr><th scope="row">Batched checking</th><td>Single-value checks (pedagogical case)</td><td>Random linear combination, amortized</td></tr>
                 <tr><th scope="row">Network, scheduling, replay</th><td>Not modeled (one browser tab)</td><td>Required</td></tr>
@@ -329,6 +347,7 @@
             <li><a href="https://link.springer.com/chapter/10.1007/3-540-46766-1_34">Beaver — Efficient Multiparty Protocols Using Circuit Randomization (CRYPTO '91)</a> — the multiplication triple.</li>
             <li><a href="https://eprint.iacr.org/2016/505">Keller, Orsini, Scholl — MASCOT (2016)</a> — OT-based triple generation (named, not built here).</li>
             <li><a href="https://eprint.iacr.org/2017/1230">Keller, Pastro, Rotaru — Overdrive (2018)</a> — faster SHE preprocessing (named, not built here).</li>
+            <li><a href="https://eprint.iacr.org/2026/2533">Keller, Navot, Tyagi — Off-Key (2026 preprint)</a> — inconsistent MAC-key contexts, the blind-opening residuals, selective failure, and key-binding mitigation adapted above.</li>
             <li><a href="https://github.com/data61/MP-SPDZ">MP-SPDZ</a> — the framework whose Mersenne61 backend uses this exact field; its MAC_Check implements the commit-then-open, batched check this page teaches the single-value case of.</li>
             <li><a href="https://github.com/KULeuven-COSIC/SCALE-MAMBA">SCALE-MAMBA</a> — another SPDZ-family implementation.</li>
           </ul>
