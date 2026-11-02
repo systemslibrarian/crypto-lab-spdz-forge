@@ -257,6 +257,20 @@
         <div id="panel-offkey"></div>
       </section>
 
+      <section class="panel" aria-labelledby="delayed-h">
+        <span class="panel-kicker">RESEARCH EXTENSION · DEPENDENT CHECKS</span>
+        <h2 id="delayed-h">Can an abort come too late?</h2>
+        <p>
+          A different MPC family checks redundant messages after several dependent gates. Run an
+          isolated synthetic trace: an incorrect first-gate message changes an honest party's state,
+          and a later per-party hash can reveal a masked input before the final abort. Compare an
+          immediate check and a joint delayed verdict. This is not SPDZ's MAC-check protocol.
+          <a href="https://encrypto.de/papers/BS26.pdf">Brüggemann and Schneider, EUROCRYPT 2026,
+          §3.3 and §3.5</a>.
+        </p>
+        <div id="panel-delayed"></div>
+      </section>
+
       <section class="panel" aria-labelledby="pre-h">
         <span class="panel-kicker">STEP 4 · THE ARCHITECTURE</span>
         <h2 id="pre-h">Offline vs online: why SPDZ is deployable</h2>
@@ -348,6 +362,7 @@
             <li><a href="https://eprint.iacr.org/2016/505">Keller, Orsini, Scholl — MASCOT (2016)</a> — OT-based triple generation (named, not built here).</li>
             <li><a href="https://eprint.iacr.org/2017/1230">Keller, Pastro, Rotaru — Overdrive (2018)</a> — faster SHE preprocessing (named, not built here).</li>
             <li><a href="https://eprint.iacr.org/2026/2533">Keller, Navot, Tyagi — Off-Key (2026 preprint)</a> — inconsistent MAC-key contexts, the blind-opening residuals, selective failure, and key-binding mitigation adapted above.</li>
+            <li><a href="https://encrypto.de/papers/BS26.pdf">Brüggemann, Schneider — When Trying to Catch Cheaters Breaks the MPC (EUROCRYPT 2026, full version)</a> — dependent-gate poisoning, delayed checks, and the joint-verdict repair. The separate Z₁₇ trace above adapts only the information-flow relation, not Trident's protocol.</li>
             <li><a href="https://github.com/data61/MP-SPDZ">MP-SPDZ</a> — the framework whose Mersenne61 backend uses this exact field; its MAC_Check implements the commit-then-open, batched check this page teaches the single-value case of.</li>
             <li><a href="https://github.com/KULeuven-COSIC/SCALE-MAMBA">SCALE-MAMBA</a> — another SPDZ-family implementation.</li>
           </ul>
