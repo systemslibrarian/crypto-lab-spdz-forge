@@ -51,7 +51,7 @@ The main lab already uses one in-memory key (`src/ui/state.ts`) for inputs and a
 
 This remains a **three-party trusted-dealer algebraic adaptation**, not a framework reproduction. It does not implement the paper's two-party preprocessing protocols, distributed masked multiplication, batching coefficients, persistent key bindings, threads, restarts, or network behavior. The same-context comparison models the restored assumption by producing the blind mask under α; it is protocol state, not a client-side validation rule. A real fix preserves and reuses the preprocessing protocol's key-binding state and discards affected state after abort, as described in §5.
 
-**Source record:** reviewed the CL079 manuscript copy created 2026-10-17, SHA-256 `578bda70467f3d658c0011a08c419c37d0f5a987d0e580705c9770c24d5ab0f3`, specifically §§3, 3.2, 4.1–4.5, 5 and 5.1. The paper itself, rather than its abstract, supplies the residual identities, attacker observations, private affine example, and key-binding mitigation used here.
+**Source record:** reviewed the manuscript copy of Keller, Navot and Tyagi, *Off-Key: Inconsistent MAC Keys Compromise Privacy in SPDZ-Family MPC* (2026), ePrint 2026/2533, created 2026-10-17, SHA-256 `578bda70467f3d658c0011a08c419c37d0f5a987d0e580705c9770c24d5ab0f3`, specifically §§3, 3.2, 4.1–4.5, 5 and 5.1. The paper itself, rather than its abstract, supplies the residual identities, attacker observations, private affine example, and key-binding mitigation used here.
 
 ### Threat-model matrix
 
