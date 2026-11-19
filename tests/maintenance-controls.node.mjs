@@ -5,6 +5,10 @@ import test from 'node:test'
 const root = new URL('../', import.meta.url)
 const ci = readFileSync(new URL('.github/workflows/ci.yml', root), 'utf8')
 const deploy = readFileSync(new URL('.github/workflows/deploy.yml', root), 'utf8')
+// One definition of the gate, called by ci.yml and deploy.yml alike. `needs:`
+// cannot cross files, so this call is the only thing that can make the publish
+// wait on the same checks the auto-merge waits on.
+const gate = readFileSync(new URL('.github/workflows/gate.yml', root), 'utf8')
 const packageJson = JSON.parse(readFileSync(new URL('package.json', root), 'utf8'))
 
 function job(workflow, name) {
@@ -28,7 +32,12 @@ test('build jobs cannot mint Pages credentials', () => {
 })
 
 test('every action is pinned to an immutable commit', () => {
-  for (const workflow of [ci, deploy]) {
+  // gate.yml is in this list because the gate's actions MOVED there. Reading
+  // only ci.yml and deploy.yml after that split would have left every action
+  // in the gate unchecked while the control still reported clean -- the same
+  // hole the declared denominator below exists to prevent, one file over.
+  let totalActions = 0
+  for (const workflow of [ci, deploy, gate]) {
     // Both step shapes, because workflows here use both: `- uses: x@sha`, and a
     // step that opens with `- id:` or `- name:` carrying `uses:` on its own line.
     // Anchored on `- uses:` alone this control could not see the deploy step at
@@ -39,14 +48,25 @@ test('every action is pinned to an immutable commit', () => {
     // parsed, so a step in a shape this pattern cannot read fails here instead
     // of passing unseen -- which is how the hole above stayed quiet.
     const present = workflow.match(/^[ \t]*(?:-[ \t]+)?uses:/gm) ?? []
-    assert.equal(actions.length, present.length,
-      `${present.length - actions.length} uses: line(s) this control cannot read`)
+    // A local reusable-workflow call -- `uses: ./.github/workflows/gate.yml` --
+    // carries no @ref because it is THIS repository at THIS commit; there is
+    // nothing to pin and nothing a third party could move. It is a shape of its
+    // own, counted here so the declared denominator still balances rather than
+    // reporting it as a line the control cannot read.
+    const localCalls = workflow.match(/^[ \t]*(?:-[ \t]+)?uses:[ \t]+\.\/\.github\/workflows\/[^\s]+$/gm) ?? []
+    assert.equal(actions.length + localCalls.length, present.length,
+      `${present.length - actions.length - localCalls.length} uses: line(s) this control cannot read`)
 
-    assert.ok(actions.length > 0, 'workflow has no actions')
+    totalActions += actions.length
     for (const [, action, reference] of actions) {
       assert.match(reference, /^[0-9a-f]{40}$/, `${action} is not commit-pinned`)
     }
   }
+  // Not per workflow: ci.yml now holds only the local gate call and an
+  // auto-merge built from in-repo scripts, so requiring an action in EVERY file
+  // would fail an honest shape. Across the three there must still be actions,
+  // or this control is passing over nothing.
+  assert.ok(totalActions > 0, 'no third-party actions found in any workflow')
 })
 
 test('the deploy build has no unnecessary Pages configuration action', () => {
@@ -68,8 +88,15 @@ test('the production build runs this maintenance gate', () => {
 
 test('both hosted validation paths run the focused Off-Key mutation gate', () => {
   assert.equal(packageJson.scripts['test:mutations'], 'node scripts/mutations.mjs')
-  assert.match(job(ci, 'validate'), /npm run test:mutations/)
-  assert.match(job(deploy, 'build'), /npm run test:mutations/)
+  // The gate is one definition now, so assert the mutation step where it LIVES
+  // and that both hosted paths call that file. Asserting it twice, once per
+  // copy, is what this control used to do -- and two copies agreeing today is
+  // exactly the thing that stops being true later.
+  assert.match(job(gate, 'validate'), /npm run test:mutations/)
+  assert.match(ci, /uses: \.\/\.github\/workflows\/gate\.yml/)
+  assert.match(deploy, /uses: \.\/\.github\/workflows\/gate\.yml/)
+  // and the publish cannot start before that call has gone green
+  assert.match(job(deploy, 'deploy'), /needs: \[gate, build\]/)
 })
 
 test('the auto-merge path reads the bump type from the pull request and fails closed', async () => {
