@@ -271,6 +271,22 @@
         <div id="panel-delayed"></div>
       </section>
 
+      <section class="panel" aria-labelledby="rush-h">
+        <span class="panel-kicker">RESEARCH EXTENSION · CONCURRENT CHECKS</span>
+        <h2 id="rush-h">The MAC key that leaked through a rushing check</h2>
+        <p>
+          Step 3 says nobody holds &alpha;. That is true of the protocol, and it has been false of
+          implementations. When a MAC check fails, the check shares the honest parties open add up
+          to a multiple of &alpha; &mdash; and a corrupt party who opens last can read it off, keep
+          its own opening back so that the check never formally fails, and spend the key in a
+          second check that is still running. Run the two checks at once, then one at a time, then
+          with the masked check that removes the leak.
+          Source: Kyster, Huss Nielsen, Oechsner and Scholl, <em>Rushing at SPDZ: On the Practical
+          Security of Malicious MPC Implementations</em>, &sect;3.1&ndash;3.2 and &sect;5.
+        </p>
+        <div id="panel-rush"></div>
+      </section>
+
       <section class="panel" aria-labelledby="pre-h">
         <span class="panel-kicker">STEP 4 · THE ARCHITECTURE</span>
         <h2 id="pre-h">Offline vs online: why SPDZ is deployable</h2>

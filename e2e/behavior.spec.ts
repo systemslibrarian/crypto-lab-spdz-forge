@@ -221,3 +221,156 @@ test('nested Beaver attack controls retire their earlier evidence', async ({ pag
   await expect(page.locator('#mul-stage')).toBeEmpty()
   await expect(page.locator('#mul-breakout')).toBeEmpty()
 })
+
+// ── Rushing at SPDZ: the MAC key that leaks through a failed check ─────────
+//
+// Kyster, Huss Nielsen, Oechsner and Scholl, "Rushing at SPDZ", §3.1–§3.2.
+// The figures are compared against each other and re-derived here, in the
+// test's own BigInt arithmetic over p = 2^61 − 1, rather than asserted as
+// strings: α from the printed Σσᵢ, and the released value from the input the
+// test typed.
+
+const P61 = (1n << 61n) - 1n
+const fieldNeg = (v: bigint): bigint => (P61 - (v % P61)) % P61
+
+async function runRush(page: Page, schedule: string, y: string): Promise<void> {
+  await page.fill('#rush-y', y)
+  await page.selectOption('#rush-schedule', schedule)
+  await page.getByRole('button', { name: 'Run both checks' }).click()
+  await expect(page.locator('#rush-verdict')).toBeVisible()
+}
+
+test('RUSH-01: concurrent checks — α is recovered exactly and the forged opening releases P₀’s input', async ({ page }) => {
+  await page.goto('.')
+  await runRush(page, 'concurrent', '987654321')
+
+  // α = −Σσᵢ, recomputed from the Σσᵢ on screen.
+  const sigmaSum = BigInt((await page.locator('#rush-sigma-sum').innerText()).trim())
+  const recovered = BigInt((await page.locator('#rush-recovered').innerText()).trim())
+  expect(recovered).toBe(fieldNeg(sigmaSum))
+
+  await expect(page.locator('[data-check="1"]')).toContainText('HANGING — P₁ withholds its opening')
+  await expect(page.locator('[data-check="2"]')).toContainText('ACCEPTED — opened value 987654321')
+  await expect(page.locator('[data-check="2"]')).toContainText('ALARM — every MAC check passed')
+  expect((await page.locator('#rush-released').innerText()).trim()).toBe('987654321')
+  await expect(page.locator('#rush-verdict')).toContainText('P₀’s private input 987654321 was released')
+
+  // The dealer's α, disclosed only in the audit, is the value P₁ computed.
+  await page.locator('#rush-out summary', { hasText: 'Dealer’s audit' }).click()
+  expect(BigInt((await page.locator('#rush-true-alpha').innerText()).trim())).toBe(recovered)
+  await expect(page.locator('#rush-out .offkey-audit')).toContainText('equals the dealer’s α exactly')
+})
+
+test('RUSH-02: one check at a time — check 2 aborts in either order and nothing is released', async ({ page }) => {
+  await page.goto('.')
+
+  await runRush(page, 'sequential-leak-first', '4242')
+  await expect(page.locator('[data-check="1"]')).toContainText('ABORT — the check must finish')
+  await expect(page.locator('[data-check="2"]')).toContainText('ABORT — no value released')
+  await expect(page.locator('[data-check="2"]')).toContainText('check 1 ended the session')
+  await expect(page.locator('#rush-released')).toHaveCount(0)
+  await expect(page.locator('#rush-verdict')).toContainText('P₀’s input was not released')
+
+  await runRush(page, 'sequential-forge-first', '4242')
+  await expect(page.locator('[data-check="2"]')).toContainText('a guess')
+  await expect(page.locator('[data-check="2"]')).toContainText('ABORT — no value released')
+  await expect(page.locator('[data-check="1"]')).toContainText('NOT RUN')
+  await expect(page.locator('#rush-released')).toHaveCount(0)
+  await expect(page.locator('#rush-verdict')).toContainText('P₀’s input was not released')
+  await page.locator('#rush-out summary', { hasText: 'Dealer’s audit' }).click()
+  await expect(page.locator('#rush-out .offkey-audit')).toContainText('P₁ recovered nothing')
+})
+
+test('RUSH-03: the masked check keeps concurrency and loses the leak', async ({ page }) => {
+  await page.goto('.')
+  await runRush(page, 'masked', '4242')
+  await expect(page.locator('[data-check="1"]')).toContainText('The check still fails')
+  await expect(page.locator('[data-check="2"]')).toContainText('ABORT — no value released')
+  await expect(page.locator('#rush-verdict')).toContainText('P₀’s input was not released')
+  const estimate = BigInt((await page.locator('#rush-recovered').innerText()).trim())
+  await page.locator('#rush-out summary', { hasText: 'Dealer’s audit' }).click()
+  expect(BigInt((await page.locator('#rush-true-alpha').innerText()).trim())).not.toBe(estimate)
+  await expect(page.locator('#rush-out .offkey-audit')).toContainText('P₁’s value is not α')
+})
+
+test('RUSH-04: changing an input retires the rushing result', async ({ page }) => {
+  await page.goto('.')
+  await runRush(page, 'concurrent', '77')
+  await page.fill('#rush-y', '78')
+  await expect(page.locator('#rush-out')).toBeEmpty()
+  await runRush(page, 'concurrent', '78')
+  await page.selectOption('#rush-schedule', 'masked')
+  await expect(page.locator('#rush-out')).toBeEmpty()
+  await page.fill('#rush-y', 'abc')
+  await page.getByRole('button', { name: 'Run both checks' }).click()
+  await expect(page.locator('#rush-out .chip-warn')).toContainText('at most 9 digits')
+})
+
+test('RUSH-05: batched what-if — predicted coefficients pass two wrong values, fresh ones abort', async ({ page }) => {
+  await page.goto('.')
+  const num = async (sel: string): Promise<bigint> => BigInt((await page.locator(sel).innerText()).trim())
+
+  await page.selectOption('#rush-batch-timing', 'known-before')
+  await page.getByRole('button', { name: 'Run the batched check' }).click()
+  await expect(page.locator('#rush-batch-out')).toContainText('ACCEPTED — the weighted check is unchanged')
+  expect(await num('#rush-batch-weighted')).toBe(0n)
+  // The opened pair is not the honest (50, 600), and no input explains it:
+  // P − 20(S − 20) is re-derived here from the two opened values on screen.
+  const s = await num('#rush-batch-s')
+  const p = await num('#rush-batch-p')
+  expect([s, p]).not.toEqual([50n, 600n])
+  const derived = (((p - 20n * (s - 20n)) % P61) + P61) % P61
+  expect(derived).not.toBe(0n)
+  expect(await num('#rush-batch-residue')).toBe(derived)
+
+  await page.selectOption('#rush-batch-timing', 'drawn-after')
+  await expect(page.locator('#rush-batch-out')).toBeEmpty()
+  await page.getByRole('button', { name: 'Run the batched check' }).click()
+  await expect(page.locator('#rush-batch-out')).toContainText('ABORT — the shift was built for coefficients the check did not use')
+  expect(await num('#rush-batch-weighted')).not.toBe(0n)
+})
+
+test('RUSH-06: the paper’s two residues are recomputed from its recorded pairs and labelled as the paper’s', async ({ page }) => {
+  await page.goto('.')
+  const rows = page.locator('#rush-huang-table tbody tr')
+  await expect(rows).toHaveCount(2)
+  const M = 1n << 64n
+  for (let i = 0; i < 2; i++) {
+    const cells = await rows.nth(i).locator('td').allInnerTexts()
+    const [S, Pv, computed, printed] = cells.map((c) => BigInt(c.trim())) as [bigint, bigint, bigint, bigint]
+    expect((((Pv - 20n * (S - 20n)) % M) + M) % M).toBe(computed)
+    expect(computed).toBe(printed)
+  }
+  expect((await rows.nth(0).locator('td').nth(3).innerText()).trim()).toBe('11202993594072244072')
+  expect((await rows.nth(1).locator('td').nth(3).innerText()).trim()).toBe('735198847291711055')
+  await expect(page.locator('#panel-rush')).toContainText('nothing on this page produced them')
+})
+
+test('MAC panel: "no party holds α" is qualified by what implementations have done', async ({ page }) => {
+  await page.goto('.')
+  // The abort branch.
+  await page.getByRole('button', { name: 'Cheat & open in both protocols' }).click()
+  const abortCaveat = page.locator('#panel-mac [data-caveat="implementation"]')
+  await expect(abortCaveat).toHaveCount(1)
+  await expect(abortCaveat).toContainText('That holds for the protocol')
+  await expect(abortCaveat).toContainText('Rushing at SPDZ')
+  await expect(abortCaveat).toContainText('withholds its last opening')
+  // The page never says "no party holds it" without that sentence beside it.
+  const panel = (await page.locator('#panel-mac').innerText()).replace(/\s+/g, ' ')
+  const claims = panel.match(/no party holds it|nobody ever holds it/g) ?? []
+  const caveats = panel.match(/That holds for the protocol\./g) ?? []
+  expect(claims.length).toBeGreaterThan(0)
+  expect(caveats.length).toBe(claims.length)
+
+  // The forged branch carries it too.
+  const forging = (await page.locator('#mac-forging-value').innerText()).trim()
+  await page.fill('#mac-delta-gamma', forging)
+  await page.getByRole('button', { name: 'Cheat & open in both protocols' }).click()
+  await expect(page.locator('#panel-mac').getByText('ALARM — a forged value carried a valid MAC')).toBeVisible()
+  await expect(page.locator('#panel-mac [data-caveat="implementation"]')).toHaveCount(1)
+  const forgedPanel = (await page.locator('#panel-mac').innerText()).replace(/\s+/g, ' ')
+  expect((forgedPanel.match(/That holds for the protocol\./g) ?? []).length).toBe(
+    (forgedPanel.match(/no party holds it|nobody ever holds it/g) ?? []).length,
+  )
+})
+

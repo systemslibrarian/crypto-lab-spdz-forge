@@ -30,6 +30,19 @@ import type { AuthShares } from '../../spdz/types'
 import { alphaShares } from '../state'
 import { chip, clear, fe, h } from '../dom'
 
+/**
+ * The qualification both "no party holds α" paragraphs below need. That
+ * sentence is a statement about the PROTOCOL. Kyster, Huss Nielsen, Oechsner
+ * and Scholl, "Rushing at SPDZ: On the Practical Security of Malicious MPC
+ * Implementations", found the MAC-key leak in two of the three frameworks they
+ * analysed (MP-SPDZ and SCALE-MAMBA; FRESCO does not run output checks in
+ * parallel and was affected by a different, commitment-related issue). The
+ * exhibit further down the page runs the attack.
+ */
+const IMPLEMENTATION_CAVEAT =
+  'That holds for the protocol. Implementations that run MAC checks concurrently have leaked α: a failed check’s opened shares sum to a multiple of α, so a party that withholds its last opening can learn α from the others’ and use it in a parallel check (Kyster, Huss Nielsen, Oechsner and Scholl, “Rushing at SPDZ”, found this in MP-SPDZ and SCALE-MAMBA; MP-SPDZ has since been patched, SCALE-MAMBA is unmaintained and has not been). The research extension “The MAC key that leaked through a rushing check” below runs it.'
+
+
 const SECRET = 42n
 const PARTIES = ['P₀', 'P₁ (you)', 'P₂']
 
@@ -171,6 +184,7 @@ export function renderMacPanel(mount: HTMLElement): void {
               ? `You left your MAC share alone, so the residue is −α·Δ. The winning move is the one this paragraph used to only describe: set the MAC-share shift to α·Δ = ${forgingMac}. The field above will take it, Σσᵢ will hit exactly zero, and the honest parties will release your forged value. That is not a bug in the check; it is the check's precise statement. In a real deployment you could not compute that number, because α is additively shared and no party holds it — your only move would be guessing, one chance in p ≈ 2.3×10¹⁸.`
               : `You shifted your MAC share, but not to α·Δ — you are off by exactly Σσᵢ. Every miss aborts identically; the check has no notion of "nearly right". Set the shift to ${forgingMac} to watch it pass. You can only do that here because this tab plays the dealer and prints α above; in a real deployment α is additively shared and no party holds it, so the same forgery costs one guess in p ≈ 2.3×10¹⁸.`,
           ),
+          h('p', { class: 'note', 'data-caveat': 'implementation' }, IMPLEMENTATION_CAVEAT),
           h(
             'p',
             { class: 'note' },
@@ -206,6 +220,7 @@ export function renderMacPanel(mount: HTMLElement): void {
                   { class: 'note' },
                   'This is the guarantee stated exactly, not broken: the MAC check is worth precisely as much as α is secret. You could compute α·Δ only because this tab plays the dealer and prints α at the top of the panel. Take that number away — as SPDZ does by sharing α additively across the parties, so nobody ever holds it, and by producing the shares in an offline phase rather than from a dealer — and the same attack costs one guess in p ≈ 2.3×10¹⁸ per opening.',
                 ),
+                h('p', { class: 'note', 'data-caveat': 'implementation' }, IMPLEMENTATION_CAVEAT),
               )
             : 'Accepted with no value shift — nothing was forged.',
       )

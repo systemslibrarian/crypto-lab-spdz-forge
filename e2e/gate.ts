@@ -256,14 +256,14 @@ export async function boot(page: Page, theme: 'dark' | 'light'): Promise<void> {
 
   // Every panel is mounted by `src/main.ts` into an empty `<div>`; a navigation
   // that resolves proves nothing about whether the module ran.
-  for (const id of ['panel-add', 'panel-beaver', 'panel-mac', 'panel-offkey', 'panel-pre', 'panel-var']) {
+  for (const id of ['panel-add', 'panel-beaver', 'panel-mac', 'panel-offkey', 'panel-rush', 'panel-pre', 'panel-var']) {
     await expect(page.locator(`#${id}`)).not.toBeEmpty();
   }
 
   // ── The four panels that ship with nothing generated ─────────────────────
   // `.result-region:empty { display: none }` takes them out of the flow, so
   // "hidden" here is the real arrival rendering, not a guess.
-  for (const sel of ['#panel-add .result-region', '#panel-beaver .result-region', '#panel-offkey .result-region', '#panel-var .result-region']) {
+  for (const sel of ['#panel-add .result-region', '#panel-beaver .result-region', '#panel-offkey .result-region', '#rush-out', '#rush-batch-out', '#panel-var .result-region']) {
     await expect(page.locator(sel).first()).toBeHidden();
   }
 
@@ -286,6 +286,10 @@ export async function boot(page: Page, theme: 'dark' | 'light'): Promise<void> {
   await expect(page.locator('#mac-delta-gamma')).toHaveValue('0');
   await expect(page.locator('#offkey-secret')).toHaveValue('1');
   await expect(page.locator('#offkey-guess')).toHaveValue('1');
+  await expect(page.locator('#rush-y')).toHaveValue('4242');
+  await expect(page.locator('#rush-schedule')).toHaveValue('concurrent');
+  await expect(page.locator('#rush-batch-timing')).toHaveValue('known-before');
+  await expect(page.locator('#rush-huang-table tbody tr')).toHaveCount(2);
   await expect(page.locator('#var-0')).toHaveValue('120');
   await expect(page.locator('#var-1')).toHaveValue('95');
   await expect(page.locator('#var-2')).toHaveValue('160');
@@ -1132,6 +1136,54 @@ export async function driveAllStates(page: Page, theme: string): Promise<void> {
   await expect(page.locator('[data-context="off-key"]').getByText('outcome reveals y = 1')).toBeVisible();
   await expect(page.locator('[data-view="correctness-control"]')).toContainText('wrong computation detected');
   await scanAt('Off-Key wrong guess: selective abort reveals the other bit, correctness control separate');
+
+  // ── Research extension: the rushing check ───────────────────────────────
+  // This panel deals its own key and triples, so the bank counts asserted
+  // around it are untouched.
+  await page.fill('#rush-y', 'not a number');
+  await page.getByRole('button', { name: 'Run both checks' }).click();
+  await expect(page.locator('#rush-out .chip-warn')).toContainText('at most 9 digits');
+  await scanAt('Rushing: an out-of-model input refused');
+
+  await page.fill('#rush-y', '4242');
+  await page.getByRole('button', { name: 'Run both checks' }).click();
+  await expect(page.locator('#rush-out [data-check="1"]')).toContainText('HANGING');
+  await expect(page.locator('#rush-out [data-check="2"]')).toContainText('ALARM — every MAC check passed');
+  await expect(page.locator('#rush-verdict')).toContainText('was released');
+  await scanAt('Rushing concurrent: α leaked from a hanging check, the forgery accepted');
+
+  await openDetails(page, 'Dealer’s audit: was that really α?');
+  await expect(page.locator('#rush-out .offkey-audit')).toContainText('equals the dealer’s α exactly');
+  await scanAt('Rushing: the dealer’s audit disclosed');
+
+  await page.selectOption('#rush-schedule', 'sequential-leak-first');
+  await expect(page.locator('#rush-out')).toBeEmpty();
+  await page.getByRole('button', { name: 'Run both checks' }).click();
+  await expect(page.locator('#rush-out [data-check="2"]')).toContainText('check 1 ended the session');
+  await scanAt('Rushing sequential: check 1 aborts the session, check 2 releases nothing');
+
+  await page.selectOption('#rush-schedule', 'sequential-forge-first');
+  await page.getByRole('button', { name: 'Run both checks' }).click();
+  await expect(page.locator('#rush-out [data-check="1"]')).toContainText('NOT RUN');
+  await scanAt('Rushing sequential, forging check first: a guessed key aborts');
+
+  await page.selectOption('#rush-schedule', 'masked');
+  await page.getByRole('button', { name: 'Run both checks' }).click();
+  await expect(page.locator('#rush-out [data-check="1"]')).toContainText('The check still fails');
+  await expect(page.locator('#rush-verdict')).toContainText('was not released');
+  await scanAt('Rushing masked check: the failure reveals α·b, the forgery aborts');
+
+  await page.getByRole('button', { name: 'Run the batched check' }).click();
+  await expect(page.locator('#rush-batch-out')).toContainText('ACCEPTED — the weighted check is unchanged');
+  await scanAt('Batched what-if: predicted coefficients, two wrong values accepted');
+
+  await page.selectOption('#rush-batch-timing', 'drawn-after');
+  await page.getByRole('button', { name: 'Run the batched check' }).click();
+  await expect(page.locator('#rush-batch-out')).toContainText('ABORT — the shift was built');
+  await scanAt('Batched what-if: coefficients drawn after the shares, abort');
+
+  await page.locator('#rush-schedule').focus();
+  await scanAt('Rushing: the schedule select focused');
 
   // ── Offline preprocessing panel ──────────────────────────────────────────
   // The gauge is at 5/8 here, so its track is visible BESIDE its fill — which

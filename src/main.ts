@@ -4,6 +4,7 @@ import { renderBeaverPanel } from './ui/panels/beaver'
 import { renderMacPanel } from './ui/panels/maccheck'
 import { renderOffKeyPanel } from './ui/panels/offkey'
 import { renderDelayedCheckPanel } from './ui/panels/delayedCheck'
+import { renderRushingPanel } from './ui/panels/rushing'
 import { renderPreprocessingPanel } from './ui/panels/preprocessing'
 import { renderVariancePanel } from './ui/panels/variance'
 
@@ -18,5 +19,6 @@ mount('panel-beaver', renderBeaverPanel)
 mount('panel-mac', renderMacPanel)
 mount('panel-offkey', renderOffKeyPanel)
 mount('panel-delayed', renderDelayedCheckPanel)
+mount('panel-rush', renderRushingPanel)
 mount('panel-pre', renderPreprocessingPanel)
 mount('panel-var', renderVariancePanel)
