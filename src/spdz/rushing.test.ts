@@ -14,13 +14,14 @@
  * (2026), and that paper's two printed residues.
  */
 import { describe, expect, it } from 'vitest'
-import { P, add, mul, neg, sub } from './field'
+import { P, add, mul, neg, sub, randFieldElement } from './field'
 import { dealMacKey, macKeyOf, shareSecret, tamperShare, openValue } from './sharing'
 import { checkShares } from './transcript'
 import {
   CORRUPT,
   HUANG_RECORDED_PAIRS,
   batchedMacCheck,
+  forgingCheck,
   huangResidue,
   recoverAlphaFromOpenings,
   runBatchWhatIf,
@@ -92,17 +93,25 @@ describe('check 2: the forged opening', () => {
     }
   })
 
-  it('sequential, leaking check first: α is learned, the session aborts, nothing is released', async () => {
+  it('sequential, leaking check first: α is learned, the session aborts, check 2 never runs', async () => {
     for (const y of INPUTS) {
       const run = await runRushing('sequential-leak-first', y)
       // The key still leaks to the corrupt party -- sequencing does not undo that ...
       expect(run.alphaLeaked).toBe(true)
-      // ... but check 1 has to finish, it cannot, and check 2 never opens anything.
+      expect(run.leak.recoveredAlpha).toBe(macKeyOf(run.audit.alphaShares))
+      // ... but check 1 has to finish, it aborts (the corrupt opening is missing),
+      // and check 2 is never scheduled -- a COMPUTED consequence of check 1's abort,
+      // not a hand-built result.
       expect(run.leak.outcome).toBe('abort')
-      expect(run.forge.outcome).toBe('abort')
-      expect(run.forge.abortAt).toBe('session')
+      expect(run.forge.outcome).toBe('not-run')
       expect(run.forge.released).toBeNull()
       expect(run.inputRevealed).toBe(false)
+      // Prove the protection is the SCHEDULING, not the algebra: run check 2 with
+      // the very α that leaked, and it forges -- releasing exactly y. Only the
+      // sequential scheduler (abort at check 1) stops this in the run above.
+      const wouldForge = forgingCheck(y, run.audit.alphaShares, run.leak.recoveredAlpha, 'recovered', randFieldElement)
+      expect(wouldForge.outcome).toBe('accepted')
+      expect(wouldForge.released).toBe(y)
     }
   })
 

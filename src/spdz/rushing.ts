@@ -289,7 +289,7 @@ async function maskedLeakingCheck(
  * and the released "result" is y. If it is anything else the first opening
  * that touches the shifted share fails its MAC check and the parties abort.
  */
-function forgingCheck(
+export function forgingCheck(
   victimInput: bigint,
   alphaShares: readonly bigint[],
   alphaUsed: bigint,
@@ -333,6 +333,22 @@ const notRunLeak = (): LeakCheck => ({
 })
 
 /**
+ * Check 2 was never scheduled: check 1 went first and aborted, so the session
+ * ended before check 2 opened anything. `alphaUsed` is the key the corrupt
+ * party DID leak out of check 1 — real, but with no live check left to spend it
+ * on. (The test runs `forgingCheck` with this same key to confirm it WOULD have
+ * forged; the scheduling, not the algebra, is what stops it.)
+ */
+const notRunForge = (alphaUsed: bigint): ForgeCheck => ({
+  alphaUsed,
+  alphaSource: 'recovered',
+  honestProduct: 0n,
+  macShift: mod(alphaUsed),
+  outcome: 'not-run',
+  released: null,
+})
+
+/**
  * Run both checks under one schedule, against a freshly dealt MAC key.
  *
  * A fresh key per run is deliberate: once α has leaked, everything
@@ -368,18 +384,15 @@ export async function runRushing(
     order = ['check-1', 'check-2']
   } else if (schedule === 'sequential-leak-first') {
     // Check 1 must finish before anything else is released. The corrupt party
-    // still learns α from the honest openings -- and the check then fails, so
-    // the session aborts and check 2 never opens anything.
+    // still learns α from the honest openings -- and the check then aborts (its
+    // own opening is missing), so the session ends and check 2 is never
+    // scheduled. The forge's non-execution is a CONSEQUENCE of check 1's
+    // computed outcome, not a fixed result: leakingCheck(mustComplete=true)
+    // returns `abort`, so check 2 does not run.
     leak = await leakingCheck(xShares, alphaShares, shift, true)
-    forge = {
-      alphaUsed: leak.recoveredAlpha,
-      alphaSource: 'recovered',
-      honestProduct: 0n,
-      macShift: mod(leak.recoveredAlpha),
-      outcome: 'abort',
-      abortAt: 'session',
-      released: null,
-    }
+    forge = leak.outcome === 'abort'
+      ? notRunForge(leak.recoveredAlpha)
+      : forgingCheck(victimInput, alphaShares, leak.recoveredAlpha, 'recovered', rand)
     order = ['check-1', 'check-2']
   } else {
     // Check 2 goes first. The corrupt party has not seen a failed check yet,

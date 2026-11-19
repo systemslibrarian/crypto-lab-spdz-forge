@@ -261,12 +261,12 @@ test('RUSH-01: concurrent checks — α is recovered exactly and the forged open
   await expect(page.locator('#rush-out .offkey-audit')).toContainText('equals the dealer’s α exactly')
 })
 
-test('RUSH-02: one check at a time — check 2 aborts in either order and nothing is released', async ({ page }) => {
+test('RUSH-02: one check at a time — check 2 never releases in either order', async ({ page }) => {
   await page.goto('.')
 
   await runRush(page, 'sequential-leak-first', '4242')
   await expect(page.locator('[data-check="1"]')).toContainText('ABORT — the check must finish')
-  await expect(page.locator('[data-check="2"]')).toContainText('ABORT — no value released')
+  await expect(page.locator('[data-check="2"]')).toContainText('NOT RUN — check 1 aborted the session first')
   await expect(page.locator('[data-check="2"]')).toContainText('check 1 ended the session')
   await expect(page.locator('#rush-released')).toHaveCount(0)
   await expect(page.locator('#rush-verdict')).toContainText('P₀’s input was not released')

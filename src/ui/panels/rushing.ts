@@ -84,14 +84,14 @@ function leakBlock(run: RushingRun): HTMLElement {
 function forgeBlock(run: RushingRun): HTMLElement {
   const f = run.forge
   const head = h('h3', {}, 'Check 2 — the forgery')
-  if (f.abortAt === 'session') {
+  if (f.outcome === 'not-run') {
     return h(
       'div',
       { class: 'proto-col', 'data-check': '2' },
       head,
-      chip('neutral', '▸', 'ABORT — no value released'),
+      chip('neutral', '▸', 'NOT RUN — check 1 aborted the session first'),
       chip('ok', '✓', 'OK — check 1 ended the session before check 2 could open anything'),
-      h('p', { class: 'note' }, 'P₁ holds α and has nowhere to spend it. Everything authenticated under that key is discarded with the session, which is the paper’s recommendation: after an abort “all randomness used in the current execution should be erased”.'),
+      h('p', { class: 'note' }, 'P₁ holds the real α — the honest openings leaked it before the check aborted — but there is no live check left to spend it on. Everything authenticated under that key is discarded with the session, which is the paper’s recommendation: after an abort “all randomness used in the current execution should be erased”.'),
     )
   }
   const lines: (Node | string | null)[] = [
